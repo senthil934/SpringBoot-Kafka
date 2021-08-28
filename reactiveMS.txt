@@ -1,0 +1,1237 @@
+Why Reactive Programming ?
+
+Before we jump into reactive programming part lets talk about how the programming in general have evolved and what is a current state of programming
+  - Before 10 to 15 yrs ago, the appl that we used to build was monolithic appl which run in appl server and this model does not embrace distributed system
+  - Now we are living in the world of microservices which runs in cloud infrastructure where the appl run in the cloud env and also suited for distributed system 
+  - The web usage in general is increased compared to 10 to 15 yrs ago and the expectations of the appl that we build also changed
+
+Expectation of the application
+   - The appl should scale according to the load. Consider we have online shopping appl if the number of users increased than the expected value then the appl should scale its resources to handle the load 
+   - Use resources efficiently - Lets say u make a call to the database or an external service to get some data and during the scenarios we wait until the responses returned from external resources, waiting on something in general is not effective resource utilization
+   - Latency (ie) response time of the request should be faster to meet the customer need, so the API should perform as fast as possible 
+
+So in todays REST API development we have 3 ways to develop the REST aplication
+  1. client communicate to back end and collect data from database
+  2. client communicate to back end and communicate with other service
+  3. client communicate to back end and collect data from database and communicate with database
+
+How traditional Restful apis handle concurrent request ?
+   The model we take is 
+Thread Per Request Model:
+    For each HTTP request the tomcat is going to take a thread from the thread pool and assign the thread to that HTTP request. Each allocated thread is responsible to handle the life cycle of thaat HTTP request 
+   The threads can be extended only to a value of n which is nothing but the thread pool size because that  is the one which is going to decide how many number of concurrent users can be handled at any given time 
+
+How can we increase or decrease the thread pool size?
+    There is the property used to manage the value of thread pool using
+     server.tomcat.max-threads
+   By default it can handle 200 connections, so in general it can handle only 200 concurrent users and this value can be overridden in application.properties or application.yml file in sping boot appl. Just because we have an option to override the value it does not mean we can set larger value for the property 
+   Each thread takes some memory, the common stack size is 1MB so  higher the thread pool size higher the memory consumption just for the thread instance so if u have larger thread pool basically that leaves you with very less memory for the application processing which means the application will perform poor
+
+How to scale ur application?
+    Load is handled using horizontal scaling, which means we create more instance of the appl based on the load.
+    For example, we have 3 instance of the appl which means the load is 3 times more than the expected value thats y we have 2 instances up and running here.
+    If ur appl is running in some kind of kubernetes or some other container orchestration environment then this is possible. In realtime we will have a load balancer sitting in front of our appl which will take care of distributing the HTTP requests to the application. This model works perfect and this model will work in the future too, but if u run more instances in the cloud is going to add some kind of additional cost to the organization
+   So we have a limitation when it comes to handling many concurrent users, so the idea of reactive programming is to move away from the thread per request model and handle higher loads of requests with less number of threads 
+
+
+Traditional REST API design
+    - Consider we have an API that relates to the retail  industry, this endpoint gets id as an input from the client and then returns the response entity of type Item.
+   Item has 2 additional details like price and location where this item is avialable. To return the item with all the information, first we make a database call and get the price of the item. And then make a rest call to get the location where this item is available. And then we build the item together with price and location infomation and finally response that to the client
+
+@GetMapping("/v1/items/{id}")
+public ResponseEntity<Item> getItemFromExternalServices(@PathVariable Integer id) {
+    Price price=priceRepo.findById(id).get(); //1. db call
+    ResponseEntity<Location> locationEntity=restTemplate.getForEntity(locationUrl,Location.class);  //2. rest call
+    Item item=buildItem(price,locationEntity.getBody());
+    return ResponseEntity.ok(item);
+}
+
+  This coding is called imperative style coding and the API is called imperative style API where the execution goes from top-down approach which means first we made database call followed by that we made the rest call to get the location, we go one by one then we build the item and responded that to client
+   Imperative style API by nature they are synchrounos and blocking which means first we make request and then we got a thread assigned to that request by tomcat and we make database call, so after the call is made we are in state called blocking state, the thread dosent do anything until the response is received from the database which means imperative style of programming leads to inefficient use of resources 
+   Synchronous aspect of the traditional API is lets assume the latency of this endpoint is 2ms, the db call takes 1ms followed by that REST API call takes 1ms which sums to 2ms for this simple usecase.
+   But in reality you might be doing lot of external resource calls before responding to client requests . If u want to improve the response time of this endpoint then we need to make these calls asynchronous which means we make this calls non blocking 
+   In Java we have 2 options, Callback and Future.
+
+Callbacks
+    - By nature it is complex and not a great option
+    - Callbacks does not return any value but it does take the instance of callback as an parameter 
+    - Callback code has a nature of handling exceptions at each level and the code itself is hard to read and maintain 
+
+Future
+   - Another alternative to write asynchronous code in Java
+   - Future returns Future instance and we use Future instance to check whether the data is available, we have methods to call and check whether the data is available or not
+   - Hard to compose multiple asynchronous operations with Future 
+    
+    Considering this limitation we have advanced Future API called CompletableFuture
+
+CompletableFuture
+     - Introduced as part of Java8
+     - simple to work with and has support for functional style API 
+     - Easy to compose multiple asynchronous request but  completableFuture is not great fit for asynchronous methods which involves multiple items in the response and the error handling not that great 
+
+So it is not easy to improve the latency with the traditional REST API design which uses imperative style of programming 
+  
+We take an another example, 
+    @GetMapping("/v1/items")
+    public ResponseEntity<List<Item>> getAllItems() {
+       List<Item> items=itemRepo.getAllItems();
+       return ResponseEntity.ok(items);
+    }
+this endpoint returns all items in the inventory then the response object size would be large and if this endpoint is have many requests then
+   1. Application might crash with out of memory error
+   2. client will get such a huge response where the client might not be able to handle 
+
+How do we avoid this happening?
+    If there is way for the app to communicate to the source which is DB in the scenario and provide a feedback as DB to slow down since it was sending too much data, this concept is called back pressure 
+    So with imperative style api's, the appl does not have a way to communicate to the DB to slow down or reduce the size of the payload so no back pressure compatability in traditional REST API design 
+
+Limitation of Traditional REST API
+   1. Limit on the number of concurrent users
+   2. They are synchrnous and non blocking
+   3. Imperative style API requires a lot of work to do in order to make it asynchronous
+   4. No back pressure support 
+
+BackPressure means an appl is request for n number of data and database having huge amount of data, but appl over here not able to handle that much data. Considering my appl is slow, server is slow and it can handle only 10 records, but when u call for data this particular database sending 1000 records and appl not able to keep that data. So we need to tell db to hold since appl not able to process it or send less data. This feature is called backpressure 
+
+What is Better API design?
+   1. Asynchronous and non blocking 
+   2. Move away from thread per request model
+   3. Use fewer threads to serve many requests
+   4. Back pressure support
+
+What is Reactive programming?
+    1. New programming paradigm and complete different way we have been building things in Java
+    2. This programming style is asynchronous and non blocking 
+    3. Data flow as an event driven stream 
+    4. Reactive programming provides Functional style apis just like streams api in Java8
+    5. Support back pressure on data streams 
+
+When to use reactive programming?
+     When there is a need to build appl that supports very hight load of data 
+
+How Reactive programming works?
+    We have 2 friends texting each other friend1 and friend2. For the sake of this example, we assume friend1 is watching tv and friend2 is busy outside. Friend1 decide to message friend2, in reality after the message is sent friend1 is not going to wait and block until the response is received from his friend2. After friend2 is complete his job outside, he have chance to reply back to friend1 and conversation proceeds, once they are done with the conversation they are going to do their work. This type of communication is called asynchronous and non blocking, the idea is not to wait and block on anything
+   In addition to asynchronous and non blocking aspect, this kind of communication is called message or event driven communication 
+
+
+How data flow as an event driven stream ?
+     Before going to reactive program, we will see how data flow in imperative program.
+
+    List<Item> items=itemRepo.getAllItems();
+
+  The code here uses JPA makes a call to database to retrieve the data. In reality from appl we make call to the db to get the data and then app waits before it gets the data from the database, it goes to block and waiting state until the complete list of items are retrieved. This model is called synchronous and blocking communication model 
+   But in reactive model the data will flow as an event or message, so we receive one event for every result item from the data source, the data source can be database or external service or external file etc
+   Once all the data is evented out to the caller then we are going to receive a completion event, if there is an error in retrieving the data from external source then we are going to receive an error event 
+
+List<Item> items=itemRepo.getAllItems();
+   Here we are going to retrieve list of items from the database. 
+   First step is we are making the call to retrieve the list  of items, the call returns immediately because it is asynchronous and non blocking. The data will be pushed to the appl as a stream and as it is available one by one, meaning one event for every single item in the resultset. We recieve onNext() call from db layer to appl layer for every single item and it will continued until all the items are pushed to the appl and this data flow is called event driven stream
+    Basically we are not blocked and data is pushed to the appl, now once all the data is pushed we receive an event called onComplete() which means all items are pushed and here is an onComplete event which tells that we dont have any more data 
+
+Error Flow
+   We make call to database as like previous example and the call returns immediately,after the first onNext() call which return first item because of some reason we got an exception, in that case instead of abruptly exiting the execution flow which is how imperative style works. 
+    But here it is going to send an error event to let the appl know something unexpected happened, so after this event has received we can take care of handling how u want to recover from that exception
+    
+No data:
+   In case of no data flow (ie) for a given search of query there is no result then in that case we just get onComplete() event  from database layer
+
+Save data:
+   We discuss save data where return type is void, 
+       itemReactiveRepo.save(item);
+  The code makes a call to the database to save the item, in those case if save is successful we get onComplete() event or if save is unsuccessful for some reason then we get onError() event 
+
+Data flow as event driven stream
+  1. onNext(item) - data stream events
+  2. onComplete() -  completion/success events
+  3. onError() - error events
+
+Functional Style code
+    - similar to streams API
+    - easy to work with lambdas 
+
+Back Pressure in data streams
+    Reactive programming supports back pressure, if the data source producing more data than we expected then there is a way for the appl to provide a feedback to the data source stating u need to slow down until a catch up , this option is handy when it comes to build stable system in reactive programming
+    
+    
+Reactive Streams Specification https://github.com/reactive-streams/reactive-streams-jvm
+
+    Previously we talk about a data flowing as an event driven stream which means requesting for data and the data flowing to the appl as a event driven stream which is otherwise called Reactive Stream
+    - Reactive stream specification is nothing but the specification or rules for a reactive stream to follow. In OOPS we have features like inheritance, encapsulation, polymorphism etc whatever code that we write in OOPS should relate to these concepts 
+   - Likewise this specification has rules on how the reactive programming code that we write should follow.
+   - who created the specification?
+         Engineers from major companies like Pivotal, Netflix, Lightbend and Twitter etc got together and created the reactive stream specification
+   - The specification has 4 interfaces
+         Publisher, Subscriber, Subscription, Processor
+All of these interfaces talk to each other in order for whole reactive stream to flow
+
+1. Publisher
+  - It is simple interface with single method called subscribe() which accepts subscriber instance, by making this call the subcriber registers to the publisher
+    public interface Publisher<T> {
+         public void subscribe(Subscriber<? super T> s);
+    } 
+Publishers are data producers basically the data source. The example of publishers are database, external service  etc
+
+2. Subscriber interface
+    - It has 4 methods
+   public interface Subscriber<T> {
+       public void onSubscribe(Subscription s);
+       public void onNext(T t);
+       public void onError(Throwable t);
+       public void onComplete();
+  }
+onNext() is data stream, onComplete() is signal for no more data, onError() is signal that error happened, onSubscribe() which has subscription object as argument 
+
+3. Subcription interface 
+      It has 2 methods
+    public interface Subscription {
+        public void request(long n);
+        public void cancel();
+    }
+
+
+Publisher/Subscriber Event flow
+     We have publisher at top and subscriber at bottom, publisher is data producer or data emitter, subscriber is one which is going to read the data from the publisher. 
+    1. The subscriber is going to invoke subscribe() of publisher and passes the instance of the subscriber as an input. 
+    2. After that publisher is going to send a subscription object to Subscriber confirming the subscription is successful 
+    3. By default the request method is going to request for all the data and whatever data that you have give it 
+    4. Lets publisher is a database and is going to return 100 items in that case there will be 100 onNext() event with each event representing a row will be sent to the subscriber
+    5. Once all the data is sent, then we will receive onComplete() event that will be sent to the subscriber 
+    There is an option for the subscriber to provide a number to the publisher asking for a specific number of data with request(n). For example out of 100 matching items u just need 2 of the items from the publisher, in that case we pass request(2) then it is going to give 2 onNext() event followed by that we get onComplete() event
+   Basically this concept is called back pressure where subscriber has a control on how much data is need from the publisher. If there is any error in whole workflow then it will be receiving an onError() event
+   The subscriber has the option to call the cancel() in the subscription that is received from the publisher, which means we are cancelling the subscription and the publisher is not going to publish any event to the subscriber
+
+4. Processor interface
+      - It is combination of Publisher and Subscriber interface 
+  public interface Processor<T,R> extends Subscriber<T>, Publisher<R> {
+
+}
+
+Implementation of Project Reactor - 3 types
+1.Reactive Libraries
+     - It is implementation of Reactive streams specification like Publisher, Subscriber, Subscription, Processor
+     - We have different Reactive Libraries like
+   1. RxJava   2. Reactor  
+   3. JDK 9 itself has Flow Class with reactive streams
+
+2. Spring webflux uses Project Reactor
+
+3.Reactor or Project Reactor
+    - Build and maintained by Pivotal
+    - Default library that comes with spring boot for writing reactive programming code 
+
+Reactor is a fourth-generation reactive library, based on the Reactive Streams specification, for building non-blocking applications on the JVM
+
+REACTIVE CORE
+Reactor is fully non-blocking and provides efficient demand management.  It directly interacts with Java's functional API, CompletableFuture, Stream, and Duration.
+
+TYPED [0|1|N] SEQUENCES
+Reactor offers two reactive and composable APIs, Flux [N] and Mono [0|1], which extensively implement Reactive Extensions.
+
+NON-BLOCKING IO
+Well-suited for a microservices architecture, Reactor offers backpressure-ready network engines for HTTP (including Websockets), TCP, and UDP.
+
+
+Project Reactor 
+  - It have different modules, but we discuss about
+1. reactor core
+2. reactor test
+3. reactor netty 
+4. reactor extra
+5. reactor adapter
+6. reactor kafka
+7. reactor rabbitmq
+
+
+reactor core 
+   - core library of Project reactor
+   - It has implementation of Reactive streams specification
+   - To work with reactor core we need minimum Java 8 
+   - Flux and Mono are two important classes which are the implementation of the reactive streams specification. These are the reactive types of project reactor
+   - Flux is a class which represents 0 to n elements
+   - Mono is a class which represents 0 to 1 elements
+
+
+Flux - 0 to N element
+   - We have marbles at the top and then operator in the middle and then marble at the bottom.
+   - Marbles at the top represents the actual data and the operator in the middle represents filtering, transformation and lot of other operations to transform the data from its raw form to another form, it goes to operator layer one by one and below marbles represents the final output which will be sent to the subscriber, the vertical line represents the onComplete, meaning there is no data, X represents there is some kind of error happened in one of the above events 
+    So we have marbles at the top which is going to flow one by one which is going to be passed to the operator layer one by one and then the final output will be sent to subscriber
+
+eg:
+   Flux.just("Spring","Spring Boot","Reactive Spring boot")
+   .map(s->s.concat("flux"))
+   .subscribe(System.out::println);
+
+We have flux of 3 elements, in reality we will be pulling the elements from db, here for simple we created flux using just(). Flux have 3 elements and all these elements will be sent one by one, so map() is method which is part of reactive API which is going to convert Spring to Spring Flux, Spring Boot to Spring Boot Flux, Reactive Spring Boot to Reactive Spring Boot Flux and then subscribe is attached to it 
+   To summarize we are going to get Spring, Spring Boot, Reactive Spring Boot as each and every element passing down to the next layer which is map layer, in the map layer we are just concatenate in the flux to each and every element and then it goes to subscribe() and print the value 
+
+https://projectreactor.io/docs/core/release/api/reactor/core/publisher/Flux.html
+   Documentation of Flux which shows different method, in the above example we saw
+1. map()
+2. Flux buffer(int size)  -- buffer(3)
+       
+Mono - 0 to 1 elements
+    It is representation of 0 to 1 elements, here we have 1 marble at the top, one marble at bottom, so after 1 element we will receive onComplete() and X represents some kind of error happened in the mono
+    Mono is a use case where we request for only one data from database or only one data from rest endpoint 
+
+   Mono.just("Spring").map(s-> s.concat("flux"))
+                .subscribe(System.out::println);
+
+Here we use just() method to create mono with one element and we cant provide multiple elts in mono which leads to compilation error, followed by that we are performing map() which transform Spring to Springflux and we have subscribe() to print the value 
+
+
+Reactive API in Spring Boot
+1. Create ReactiveSpringBoot project with reactive web, reactive mongodb, lombok and embedded mongodb(for writing integration test case). Apart from that ur pom.xml will have project reactor which is default reactive library that comes with spring for flux.
+   - The default server is Netty 
+   - No reactive mysql connector is available
+   - If u expand the dependency of project reactor, u can see 3 dependency called project reactor core which has all the flux and mono reactive types, other is reactor test used for testing flux and mono because u cant write it as unit test cases, next is reactor netty which is default server for reactive 
+
+2. Next enable lombok dependency for ur project 
+
+3. We write test cases for flux and mono and then we study about those concepts
+  - Create FluxAndMonoTest.java
+  - Create fluxTest(), first we will create flux using just() and only way to access elements from flux using subscribing to it, without subscribing there is no point  in flux. When u subscribe thats when the flux is going to start emitting the values to the subscriber 
+
+@Test
+public void fluxTest() {
+   Flux<String> stringFlux=Flux.just("Spring","SpringBoot","Reactive spring boot");
+   stringFlux.subscribe(System.out::println);
+}
+
+-Run as Flux test
+-Now it will print the values one by one so as soon as you subscribe, what this flux does is its going to pass the elements to the subscribe() one by one so it prints the value one by one 
+
+4. Consider some error happens, in that case subscribe() has overloaded method of handling that.
+   stringFlux.subscribe(System.out::println,
+         (e)->System.out.println(e));
+  In order to attach an error to flux we have concatWith() with we are attaching an exception
+    Flux<String> stringFlux=Flux.just("Spring","SpringBoot","Reactive spring boot")
+     .concatWith(Flux.error(new RuntimeException("Exception occured")));
+
+Here the data is going to flow to the subscriber as events, as soon as we call subscribe(), a subscribe event is send to the flux and from there it send the events using onNext() and when there is exception its going to send u onError() with exception and send to subscribe() second argument
+   In order to see those events, flux have log() which is used to log all the events that happens behind the scenes when u call subscribe()
+
+Flux<String> stringFlux=Flux.just("Spring","SpringBoot","Reactive spring boot")
+      .concatWith(Flux.error(new RuntimeException("Exception occured")))
+	.log();
+  stringFlux.subscribe(System.out::println,(e)->System.out.println(e));
+
+When we run the code,the first step is onSubscribe(), after that we have onRequest() which means the request call with unbounded, basically subscribe request for whatever data u have till maxvalue. As soon as flux receives the request unbounded call, its going to send element one by one that why we se onNext() and then pass the element and print it and it pass next elemt like that, since we have error that why it ended with onError() event. If there is no error then we receive onComplete event 
+   
+5. Now comment concatWith() and run it, now we can see the process end with onComplete event
+
+6. Now we check after the error whether flux will emit an event or not, for that we create concatWith() after an exception
+Flux<String> stringFlux=Flux.just("Spring","SpringBoot","Reactive spring boot")
+			     .concatWith(Flux.error(new RuntimeException("Exception occured")))
+			     .concatWith(Flux.just("After error"))
+			     .log();
+
+In this case it wont print "After error" after an exception occured because once the error is emitted from flux then it is not going to send any more data 
+
+7. subscribe() takes 3rd parameter also which gets notified whenever there is onComplete event 
+
+stringFlux.subscribe(System.out::println,(e)->System.out.println(e),()->System.out.println("Completed"));
+
+
+Writing Junit test for Flux
+1. Now we are going to test flux without any error, so we are not going to have error part 
+
+Flux<String> stringFlux=Flux.just("Spring","SpringBoot","Reactive spring boot").log()
+
+We are going to test the elements inside the flux which is spring, spring boot, reactive spring boot and the order in which elements are flowing to the subscriber 
+   In order to test the elements, reactor test is a module that we are going to use it and it has class called StepVerifier class. We write StepVerifier class which contains create() method which takes flux as argument
+          StepVerifier.create(stringFlux);
+  Next we have to define what is expected, for that we use expectNext() with 3 values and finally we have verifyComplete() for completion of flux
+   StepVerifier.create(stringFlux)
+          .expectNext("Spring")
+          .expectNext("Spring Boot")
+          .expectNext("Reactive Spring Boot")
+          .verifyComplete();
+If we change the order, then the test case it would be failed. So this test case make sure that we are getting the elements from the flux in the order that we have it here 
+  The difference between 2 methods is that subscribe() is one which is going to start the whole flow of the flux to pass the elements from flux to the subscriber,  but here StepVerifier take care of subscribing to the flux and then asserting the values on the flux
+   When we comment verifyComplete() and run then we wont get any output because verifyComplete is a call which is actually equivalent to subscribe which iss going to start the flow of elements from the flux.
+
+   Instead of defining expectNext() multiple times, we can define in a single line also 
+  .expectNext("Spring","SpringBoot","Reactive spring boot")
+
+
+2. Next we create fluxTest_WithError() to check for errors. 
+   Here error is going to be last event, because we provide concatWith() which generates the error. In order to test the error case we have expectError() followed by verify(). verify() is one which start the whole flow of flux to subscriber 
+
+@Test
+	public void fluxTest_WithError() {
+		Flux<String> stringFlux=Flux.just("Spring","SpringBoot","Reactive spring boot")
+				.concatWith(Flux.error(new RuntimeException("Exception occured")));
+		 StepVerifier.create(stringFlux)
+         .expectNext("Spring")
+         .expectNext("SpringBoot")
+         .expectNext("Reactive spring boot")
+         .expectError(RuntimeException.class)
+         .verify();
+	} 
+
+If you want to verify only the message inside exception, for that we have expectErrorMessage(), we cant have both expectError() and expectErrorMessage()
+
+3. We dont want to validate all values, we want to validate the number of elements that particular flux is gonna emit, in that we use expectNextCount()
+
+@Test
+	public void fluxTestCount_WithError() {
+		Flux<String> stringFlux=Flux.just("Spring","SpringBoot","Reactive spring boot")
+				.concatWith(Flux.error(new RuntimeException("Exception occured")));
+		 StepVerifier.create(stringFlux)
+         .expectNextCount(3)
+         .expectErrorMessage("Exception occured")
+         .verify();
+	}
+
+Writing Junit test for Mono
+1. Create monoTest(), we are creating Mono with just() which takes only one element 
+
+@Test
+	public void monoTest() {
+		Mono<String> stringMono=Mono.just("Spring");
+		StepVerifier.create(stringMono)
+		.expectNext("Spring")
+        .verifyComplete();
+	}
+When we run verifyComplete(), first call is onSubscribe() then we request for unbound data but in mono it is always 1 data so we got next event which is onNext from Mono and then onComplete event is called 
+
+2. Next we check errors in Mono, we create monoTest_Error()
+
+@Test
+	public void monoTest_WithError() {
+		StepVerifier.create(Mono.error(new RuntimeException("Exception Occured")).log())
+		.expectError(RuntimeException.class)
+        .verify();
+	}
+
+
+Introduction to Spring boot 2
+   - Introduce with new module called Spring Flux as part of Spring 5
+
+1. Goto https://spring.io/reactive
+2. You can see table dedicated for Springboot 2
+      We have Reactor at top which is Project Reactor which has Reactive Stack which refers to Spring Flux and Servlet Stack which refers to Spring MVC 
+   
+Reactive Stack:
+     Spring WebFlux is non blocking web which means async way of communicating over the network. To facilite this communication we need non blocking servers such as netty, servlet3.1 or above containers
+   In reactive stack there is no place for Servlets which is complete shift since we have non blocking interactions over network so we have reactive streams adapter 
+   Even security layer should be non-blocking so we have spring security reactive for that purpose and then we have Spring WebFlux which has annotated controllers and functional endpoints to handle the HTTP requests, in order to interact with db in non blocking way we have dedicated reactive modules for Mongo, Cassandra, Redis, Couchbase and R2DBC for relational db 
+
+Servlet Stack
+    It is old spring MVC which is thread per connection module which uses servlet
+
+https://docs.spring.io/spring-framework/docs/current/reference/html/web-reactive.html
+
+
+Example 2:
+1. In same ReactiveSpringBoot project, create FluxAndMonoController annotated with @RestController
+
+2. We create GET request called "/flux", this method returns Flux which means 0 to n elements
+
+@GetMapping("/flux")
+public Flux<Integer> returnFlux() {
+     return Flux.just(1,2,3,4).log();
+}
+Run the appl which runs in Netty server since it is non blocking way
+
+Run as http://localhost:1234/flux - will display 1,2,3,4 in the browser but in the console u can see onNext event will be generated for each element and finally onComplete event
+
+Previously we discuss in Flux and mono, this happens only when we subscribe to it, but when the browser hits the endpoint, the browser is like a subscriber which is asking for the data so the first call is that the subscription is sent back to browser, after that there is a request call and all elements are sent back to browser, so browser is the one which is a subscriber of this flux 
+
+3. In order to differentiate response that comes from Spring MVC and Spring Webflux, so now we introduce delay for 1sec, so each element is going to have a delay for 1sec
+
+@GetMapping("/flux")
+	public Flux<Integer> returnFlux() {
+	     return Flux.just(1,2,3,4)
+	    		 .delayElements(Duration.ofSeconds(1))
+	    		 .log();
+	}
+
+-Restart the appl, when we run http://localhost:1234/flux, it will take 4 sec to reload the browser and display the result
+    In the endpoint, we didnt mention what type of return type it is returning to the browser, so by default it returns JSON, so the browser wait until all the elements are returned and then display. Since browser cares about what is return type so it wait until all elets are returned and then display
+
+4. Now we are going to return stream instead of JSON 
+
+@GetMapping("/fluxStream", produces=MediaType.APPLICATION_STREAM_JSON_VALUE)
+public Flux<Integer> returnFluxStream() {
+    return Flux.just(1,2,3,4)
+	    		 .delayElements(Duration.ofSeconds(1))
+	    		 .log();
+} 
+
+Here we inform the client whatever producing is a stream kind of value
+
+-Restart the appl, when we run http://localhost:1234/fluxstream, now we can see result is rendered as stream 
+
+
+Junit: Test Reactive API using WebClient 
+    Writing Junit test cases for the endpoints we previously created
+
+1. Create FluxAndMonoControllerTest.java, annotated with  @RunWith(SpringRunner.class) and @WebFluxTest
+     @WebFluxTest is used to scan for all classes that are annotated with @RestController or @Controller and more. This @WebFluxTest is not going to scan the classes that annotated with @Component,@Service and @Repository 
+
+2. In order to write test case for nonblocking client, spring introduced WebTestClient class which is non blocking client 
+   @Autowired
+   WebTestClient webTestClient;
+
+3. Create flux_approach1(), we use instance of WebTestClient followed by get() and uri() which provide the endpoint we are going to connect, next is accept() which provide the mediatype, next is exchange() acts like subscriber and invoke the endpoint as subscription call and started to emit all the values to subcriber, next we are expecting the status to be OK, next is expecting the return result as integer and finally get response body 
+   Next we create StepVerifier and pass the generated flux and we expect the subscription to  be sent to us from this endpoint using expectSubscription(), next we expect the values one by one using expectNext() and finish using verifyComplete()
+
+
+4. Create flux_approach2(),
+      we are going to expect the header with content type and next is expectBodyList() with Integer.class, here we are not going to evaluate the values instead we will evaluate the size that are coming from flux using hasSize()
+
+5. Create flux_approach3(),
+       Here we are using extra returnResult() which returns EntityExchangeResult, so  here instead of asserting the values we return EntityExchangeResult which has value 
+
+6. Create flux_approach4(),
+       Here we use consumeWith() which gets actual value , here EntityExchangeResult will return as an response 
+
+
+Test for infinite Non blocking sequence 
+     We are going to create an endpoint which will generate infinite streams, in case of server side events or stock tickers
+
+@GetMapping(value="/fluxStream", produces=MediaType.APPLICATION_STREAM_JSON_VALUE)
+	public Flux<Long> returnFluxStream() {
+	    return Flux.interval(Duration.ofSeconds(1))
+		    		 .log();
+	} 
+
+Run the appl, we run http://localhost:1234/fluxStream, we can see events are coming to browser infinitely and in console the events are emitted and that displayed in browser
+  Now if we run same endpoint in another tab http://localhost:1234/fluxStream, it is another instance and start to print from the beginning 
+  Whenever we try to stop  the appl, it will cancel the instance gracefully, it will send cancel() event to these clients 
+
+1. Now we write test cases for infinite streams, create fluxStreamTest(). We use same code like flux_approach1 method
+
+
+Build Reactive API using SpringBoot with Mono
+1. We create returnMono() with GET request which returns only single element
+
+@GetMapping("/mono")
+public Mono<Integer> returnMono() {
+    return Mono.just(1).log();
+}
+
+2. Now we create test case for Mono, here we are requesting for a single resource and get that resource in a non-blocking way 
+   First we use instance of WebTestClient, then we make get() followed by uri(), then accept() followed by exchange() which makes call to endpoint and expect the status to be ok 
+
+
+Spring WebFlux-Functional Web
+   1. Use Functions to route the request and response
+      Idea behind the functions to handle the incoming requests and response
+   2. Functional web contains 2 parts called RouterFunction and HandlerFunction 
+
+   When client makes a request and the call reaches the server, first the request will be forwarded to router function and if it has an appropriate mapping then the request will be forwarded to the handler function.
+   Handler function is the one which is going to do the complete processing of reading the request, processing the request and sending response back to the server 
+
+RouterFunction
+   - used to route the incoming request,  it is equivalent to @RequestMapping annotation which has request url to map the request 
+
+HandlerFunction
+   - Handles the request and response, equivalent to the method body after the request is received 
+   - HandlerFunction have ServletRequest which represents HttpRequest and ServletResponse represents the HttpResponse 
+
+Non Blocking endpoints using Handler and Router
+    We are not going to use RestController to create endpoint, instead we use Functional web endpoint  
+1. Create SampleHandlerFunction.java, annotate with @Component so this class to be scanned as bean and using this bean in our router function 
+2. Create a method which returns ServerResponse and going to be Mono, since we are building non-blocking it can be Mono or Flux. We are going to read the request using ServerRequest and send response using ServerResponse with ok() and set content type as APPLICATION_JSON and set the body using body() where we set the actual values which going to emit as part of endpoint 
+   This endpoint is going to return Flux which is enclosed in ServerResponse and returns status code as OK 
+
+public Mono<ServerResponse> flux(ServerRequest serverRequest){
+		  return ServerResponse.ok()
+				  .contentType(MediaType.APPLICATION_JSON)
+				   .body(
+					  Flux.just(1,2,3,4).log(),Integer.class
+				   );
+	}
+
+3. Create a router function in RouterFunctionConfig.java with @Configuration and it is responsible to map the incoming request to appropriate handler 
+   Create a bean which return a RouterFunction class and  this method takes HandlerFunction as input and it returns RouterFunctions class with route(), this route method takes the url and provide the type it going to accept and we have provide the handler function
+
+4. Start the appl
+5. Run http://localhost:1234/functional/flux, now it will print 1,2,3,4
+   Now the incoming request is picked up by particular mapping and call handler function called flux() which contains response
+
+6. Now we create another handler method called mono(), u can add this configuration inside router function using andRoute()
+
+7. Start the appl
+8. Run http://localhost:1234/functional/mono, now it will print 1
+   Now the incoming request is picked up by particular mapping and call handler function called mono() which contains response   
+
+JUnit for Functional Endpoint using WebTestClient
+     We have handler,router package so same package has to be created 
+1.Create SampleHandlerFunctionTest.java with @RunWith(SpringRunner.class)
+   We already discuss, @WebFluxTest will scan only classes with @RestController or @Controller, not the classes with @Component,@Service etc. So here we cant use @WebFluxTest, so instead we use @SpringBootTest. @SpringBootTest dosent automatically read ur WebTestClient, so we have to define @AutoConfigureWebTestClient
+  Next we autowire WebTestClient 
+
+
+
+Reactive Spring boot with MySQL database
+
+a) Using Spring Data R2DBC, tables cannot be created at runtime. We can either create the tables externally or we can create a schema.sql file inside the resources folder and execute them programmatically. For our application, we will create a schema.sql file inside the resources folder with all the DDL statements.
+DROP TABLE IF EXISTS users ;
+CREATE TABLE users ( id INT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY, name VARCHAR(100) NOT NULL, age integer,salary decimal);
+DROP TABLE IF EXISTS department ;
+CREATE TABLE department ( id INT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,user_id integer, name VARCHAR(100) NOT NULL, loc VARCHAR(100));
+b) Execute the schema.sql file, for which we need to override the ConnectionFactoryInitializer Bean.
+
+@Configuration
+public class CustomConnectionFactoryInitializer {
+    @Bean
+    public ConnectionFactoryInitializer initializer(ConnectionFactory connectionFactory) {
+        ConnectionFactoryInitializer initializer = new ConnectionFactoryInitializer();
+        initializer.setConnectionFactory(connectionFactory);
+        CompositeDatabasePopulator populator = new CompositeDatabasePopulator();
+        populator.addPopulators(new ResourceDatabasePopulator(new ClassPathResource("schema.sql")));
+        initializer.setDatabasePopulator(populator);
+        return initializer;
+    }
+}
+
+
+1. Create Customer table in mysql
+mysql> use reactive;
+Database changed
+mysql> create table customer(id int primary key auto_increment,name varchar(20));
+Query OK, 0 rows affected (5.20 sec)
+
+mysql> insert into customer(name) values('ram');
+Query OK, 1 row affected (0.46 sec)
+
+mysql> insert into customer(name) values('sam');
+Query OK, 1 row affected (1.04 sec)
+
+2. Create ReactiveSpringBoot-DB project with reactive web, spring data R2DBC, lombok, mysql driver dependency
+
+3. We need to build reactive rest endpoint which provide  crud operation on Customer 
+Create model class called Customer
+
+4. Create CustomerRepository which extends ReactiveCrudRepository 
+
+5. We create CustomerController.java and reactive prog works on Project Reactor which have Flux and Mono 
+  First we want to return list of customers so we will return Flux in case of getAllCustomers()
+  If we want to return single customer then we use Mono for getCustomer()
+  We return single customer object after inserting into db so we return Mono
+  In case of updating the customer, we find the customer by id from database, we convert that customer object using map() and save using flatMap()
+
+6. Start the application
+7. In postman, with 
+GET - http://localhost:1111/customer
+GET - http://localhost:1111/customer/1
+POST - http://localhost:1111/customer - under JSON give
+{
+   "name":"Raj"
+}
+Here we clearly assume that for any new customer, id would be null to successfully save into our database. If we provide any id then we get
+
+https://www.vinsguru.com/spring-data-r2dbc/
+org.springframework.dao.TransientDataAccessResourceException: Failed to update table [product]. Row with Id [40] does not exist.
+
+This is because we are trying to save a new product. The id field should be null. If it is present, Spring expects the given id to be present in the DB. So we can not insert a new record with the given id. But We can fix this by implementing the Persistable interface. If the isNew method returns new, R2DBC inserts the record with the given id.
+
+
+PUT - http://localhost:1111/customer/1
+{
+   "id":"3",
+   "name":"Raju"
+}   
+DELETE - http://localhost:1111/customer/1
+
+
+
+
+
+
+Spring Webclient
+    Spring webclient is a new addition to the spring ecosystem through whuch u can build modern Restful API clients 
+
+What is Spring WebClient?
+    - Released as part of Spring5
+    - Part of the Spring WebFlux module
+    - It is Functional Style API
+    - Using WebClient we can build both synchronous and asynchronous Rest API client 
+    - Spring webclient is asynchronous by default 
+
+Why WebClient?
+     - RestTemplate is one of popular Rest client as part of Spring framework. But from spring 5.0, the non blocking reactive WebClient offers a modern alternative to RestTemplate with support for both sync and async as well as stream scenarios
+     - RestTemplate will be deprecated in future version, and stop using RestTemplate as part of our appl
+
+1. Create ReactiveSpringBoot-WebClient which is going to communicate with ReactiveSpringBoot-DB using webclient
+
+2. Create CustomerRestClient.java
+
+3. Inside that create retrieveAllCustomers() which retrieve all the customers.
+       - Inorder to make call we need instance of WebClient so we autowire it. Webclient API is functional style API so it give what kind of method we want to perform
+      - To fetch all customer use get endpoint so we use get() and followed by we pass url using uri() and followed by retrieve() which make the call to the endpoint and we get response object 
+     - The response for this endpoint returns multiple customers so we use bodyToFlux() and collect this value as list using collectList()
+     - Since by default WebClient is async but in order to make WebClient instance behave like synchronous client we need to use block()
+
+4. Next we need to add properties to Customer model
+
+Example 2:
+1. mysql> create table book_request(booking_Id int primary key auto_increment,user_name varchar(20),show_name varchar(20),booking_time date,user_count int,price double);
+
+2. We create 2 methods to capture the request and anothe r to capture the response, we have ExchangeFilterFunction which contains ofRequestProcessor() and ofResponseProcessor()
+
+Handling Fault Responses in Functional Approach
+    In traditional way of error handling where we have REST api call and if there is an exception, we have try catch block to handle the exception
+
+  try {
+            return webClient.get().uri(GET_ALL_EMPLOYEES_V1)
+                    .retrieve()
+                    .bodyToFlux(Employee.class)
+                    .collectList()
+                    .block();
+        } catch (WebClientResponseException ex) {
+            log.error("Error Response code is : {} and the message is {}", ex.getRawStatusCode(), ex.getResponseBodyAsString());
+            log.error("WebClientResponseException in retrieveAllEmployees", ex);
+            throw ex;
+        } catch (Exception ex) {
+            log.error("Exception in retrieveAllEmployees ", ex);
+            throw ex;
+        }
+
+Functional Error handling
+
+ return webClient.get().uri(EMPLOYEE_BY_ID_V1, employeeId)
+                .retrieve()
+                .onStatus(HttpStatus::is4xxClientError, clientResponse -> handle4xxErrorResponse(clientResponse))
+                .onStatus(HttpStatus::is5xxServerError, clientResponse -> handle5xxErrorResponse(clientResponse))
+                .bodyToMono(Employee.class)
+                .block();
+
+Webclient has onStatus() method, where we can write Predicate, using which we have custom way of handling 4xx and 5xx response 
+
+Retry using webclient
+     We have clientApp and ServerApp, clientApp is making call to server, due to some technical network issues it receive some error response. Instead of considering that request failed, if u retry there is a possibility that particular request can recover from failure 
+
+
+Reactive Microservice with API Gateway
+1. Create Reactive-DiscoveryServer which act like eureka server
+2. mysql> create table car(id int primary key auto_increment,name varchar(20),type varchar(20),release_Date date);
+ 
+Create Reactive-CarService which communicate with database
+    Created test with Junit5 and provided Junit5 dependency
+3. Create Reactive-APIGateway which communicate with Reactive-CarService
+ http://localhost:2102/cars/savecars with POST 
+{
+  "name":"Amaze",
+  "type":"Petrol",
+  "release_date":"2000-09-02"
+}
+
+4. In case if carservice is down, then it will print hystrix fallback method
+
+5..filters(f->f.rewritePath("/cars/", "/carss/"))
+      Initially we give /cars/getcars it will go to first route, now consider we are doing some changes in url as "/carss". So consider we didnt update the changes to the enduser, then he will try to access as /cars/getcars which will leads to an 404 error 
+   To overcome we create one more route with "/cars/" and here we replace /cars with /carss using rewritePath method, so it wont have any impact we inform that for both request the appl would be working 
+
+6. To add some customized header we use addRequestHeader and addResponseHeader, we can print request header using @RequestHeader
+   We can see response header, while u run the appl, in broswer console, goto Network tab, select the getCars() and we can see
+
+7. In order to authenticate ur request we add 
+<dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+        </dependency>
+
+8. When we run appl http://localhost:2102/cars/getcars, it will open default login page and provide
+    username: user
+    password: paste the generated password 
+But everytime password will change. In case we have 2 developers and developer1 working on login, authorization and authentication module and developer2 working on actual business logic 
+
+9. So we provide credential by using inmemory authentication or database authentication, so we create separate class with @EnableWebFluxSecurity with
+
+@Bean
+	MapReactiveUserDetailsService userDetailsService() {
+		UserDetails user=User.withUsername("senthil")
+				             .password("abcd1234")
+				             .roles("USER")
+				             .build();
+		return new MapReactiveUserDetailsService(user);
+	}
+
+Basically we provide username and password, if we run it will blowup because spring security password encoding supports "DelegatingPasswordEncoder". In order to protect user password, we ran those password in 1way hash and back in data used to be md5. But md5 is not secured because there collisions is not right algorithm for password so we use SHA 
+    SHA is run passwords through  hash function and then store them in rainbow tables, so it is easily possible to hack those passwords from rainbow tables which is available in online also
+   So we go for SALT which is a random bytes that combined with password, so if someone logged in and type ur password it will take randow bytes run through the hash function and see if that matches what was stored. Now we have to set random bytes combined with every password so it is impossible 
+  So in modern day security to store password we are using bcrypt or scrypt or argon2 which are resource intensive because its not only CPU going to bound but also its memory going to be bound. It is adaptive because as the technology increases we add more work factor to each of password encoding mechanism 
+
+//convert text to bcrypt online and paste it 
+@Bean
+	MapReactiveUserDetailsService userDetailsService() {
+		UserDetails user=User.withUsername("senthil")
+				             .password("{bcrypt}$2a$12$8mGrFZlLuAdGRrBbFx/efObiAzQEMnPvkbtCQ2ynFQQr9Kck6FrvW")
+				             .roles("USER")
+				             .build();
+		return new MapReactiveUserDetailsService(user);
+	}
+
+Here we provide {bcrypt} since in cryptography it must be secure even if the component knows wht algorithm u used so DelegatingPasswordEncoder looks for prefix {bcrypt} then it will validate with bcrypt password encoder 
+
+
+
+Reactive Stream Operators
+1. Create ReactiveStream-Basic project with webflux and lombok dependency
+
+2. Create FluxAndMonoService.java with main method 
+
+3. Create fruitsFlux() which create Flux from list. In order to run Flux we need to subscribe, then only we can consume that data 
+
+public Flux<String> fruitsFlux() {
+        return Flux.fromIterable(List.of("Mango","Orange","Banana")).log();
+    }
+
+Run and check in console
+
+4. Create fruitMono() which create mono with single element, and need to subcribe to consume  that data
+
+ public Mono<String> fruitMono() {
+        return Mono.just("Mango").log();
+    }
+Run and check in console
+
+5. Create junit testcase for the above 2 methods
+
+Different Stream operators
+6. map operator
+     - used to map the data that u r getting into a different form of data but with same type of flux (ie) if flux of string then return type also flux of string
+
+public Flux<String> fruitsFluxMap() {
+        return Flux.fromIterable(Arrays.asList("Mango","Orange","Banana"))
+                .map(String::toUpperCase);
+    }
+
+Create test case and check, since we didnt subscribe we wont get the output in console
+
+7. filter operator 
+      Filter the streams based on certain criteria
+
+@Test
+	public void filterTest() {
+		List<String> list=Arrays.asList("chennai","pune","bangalore","mumbai","delhi");
+		Flux<String> cityFlux=Flux.fromIterable(list);
+		Flux<String> cityFlux1=cityFlux.filter(p->p.length()>6);
+		
+		StepVerifier.create(cityFlux1)
+		            .expectNext("chennai")
+		            .expectNext("bangalore")
+		            .verifyComplete();
+	}
+	
+	@Test
+	public void filterTest1() {
+		List<String> list=Arrays.asList("chennai","pune","bangalore","mumbai","delhi");
+		Flux<String> cityFlux=Flux.fromIterable(list);
+		Flux<String> cityFlux1=cityFlux.filter(p->p.startsWith("c"));
+		
+		StepVerifier.create(cityFlux1)
+		            .expectNext("chennai")
+		            .verifyComplete();
+	}
+
+8. combine filter and map
+
+public Flux<String> fruitsFluxFilterMap(int number) {
+        return Flux.fromIterable(List.of("Mango","Orange","Banana"))
+                .filter(s -> s.length() > number)
+                .map(String::toUpperCase);
+    }
+
+9. flatmap operator
+      map operator will convert one flux into another flux, it just mapping values into different format. But what flatmap will do is, for each and every element that is emitted over here, it will convert that element in to flux of 1 to n element
+     For example, Mango is an element and when that particular element is emitted, we can convert that element to 1 to n element (ie) we convert Mango to each and every character 
+
+public Flux<String> fruitsFluxFlatMap() {
+        return Flux.fromIterable(List.of("Mango","Orange","Banana"))
+                .flatMap(s -> Flux.just(s.split("")))
+                .log();
+}
+
+Here for every element emitted over here we apply Flux 
+
+10. Flatmap operator is asynchronous operation
+
+public Flux<String> fruitsFluxFlatMapAsync() {
+	        return Flux.fromIterable(List.of("Mango","Orange","Banana"))
+	                .flatMap(s -> Flux.just(s.split(""))
+	                .delayElements(Duration.ofMillis(
+	                        new Random().nextInt(1000)
+	                )))
+	                .log();
+	}
+Here elements will delay with these Random values from 0 to 1000 
+
+11. Flatmap for Mono
+
+public Mono<List<String>> fruitMonoFlatMap() {
+        return Mono.just("Mango")
+                .flatMap(s -> Mono.just(List.of(s.split(""))))
+                .log();
+    }
+Here we convert Mono<String> to Mono<List<String>>, because Mono will store only 1 object 
+
+12. concatMap
+        concatMap is similar to flatMap, but only difference is concatmap will preserve the order. So we saw previously when we add delayElements, it dosent preserve order of element as it is asynchronous. But with concatmap, even we use delayElements, we can preserve the order 
+
+ public Flux<String> fruitsFluxConcatMap() {
+        return Flux.fromIterable(List.of("Mango","Orange","Banana"))
+                .concatMap(s -> Flux.just(s.split(""))
+                        .delayElements(Duration.ofMillis(
+                                new Random().nextInt(1000)
+                        )))
+                .log();
+    }
+
+13. flatMapMany operator  
+         used when we want to do flatMap operation on Mono but at the end we want to return Flux object 
+
+ public Flux<String> fruitMonoFlatMapMany() {
+        return Mono.just("Mango")
+                .flatMapMany(s -> Flux.just(s.split("")))
+                .log();
+    }
+
+Previously we have flatMap which returns mono, but it will return only 1 element, but if we want multiple element at that time if we want to convert mono to flux 
+
+14. transform operator
+        used to convert from one type to another type (ie) it will take Functional interface as input parameter, where u define input and output type and that particular type will be applied to transform()
+    Here we take filter info as Function interface and used inside transform()
+
+public Flux<String> fruitsFluxTransform(int number) {
+	        Function<Flux<String>,Flux<String>> filterData
+	                = data -> data.filter(s -> s.length() > number);
+	        return Flux.fromIterable(Arrays.asList("Mango","Orange","Banana"))
+	                .transform(filterData)
+	                .log();
+	      //.filter(s -> s.length() > number);
+	 }
+
+15. defaultIfEmpty operator
+       Consider in above method fruitsFluxTransform(int number), if we pass 10 as argument and if we run, the test case failed because instead of getting onNext we are getting oncomplete, since we didnt receive any data over here 
+    So if we want handle such scenario (ie) if no data to be shared and we want to send some default data we use defaultIfEmpty operator 
+
+
+16. switchIfEmpty operator
+      If we want to sent any other data, suppose if we pass value 10, with that value we are not emitting any data and in that case if we want to switch to different set of data for that we use switchIfEmpty 
+    If there is no data or data is not emitted we use defaultIfEmpty and if we want to switch to new set of data we use switchIfEmpty 
+
+17. concat and concatWith operator 
+       - used to combine 2 fluxes or 2 monos 
+       - concat is static method and concatWith is instance method 
+       - First it will subscribe first flux avaiable, it will complete it and subscribe second flux available and complete that particular operation 
+
+18. merge and mergeWith operator 
+       Previously concat will combine 2 flux or 2 mono in sequential order. But merge and mergeWith will subscribe to publisher eagerly and will emit the data in asynchronously
+     Here we provide delayElements(), so it will subscribe to both publishers and emit the data, it wont wait for one of publisher to complete the data and go for others in case concatWith()
+
+19. mergeSequential operator 
+       We saw merge will subscribe the publisher eagerly and wont wait for any of publisher to complete, but if u want the data in sequential order in case of merging we use mergeSequential 
+
+20. zip and zipWith operator 
+      Whatever operator we use, those are working on similar type of reactive types available (ie) Flux<String> then result of stream will Flus<String>. But what if we want to work with different type of reactive types and result we want is different type of reactive type, for those type of scenarios we use zip and zipwith operator
+     Here we want to create Flux from two flux fruits and veggies which contains the first value from first flux concat with first value from second flux and etc
+
+
+21. doOn callback operators 
+        These operator will not change behaviour of entire operator, used to debug particular issue or to send extra notification to other events. So actual behaviour wont change, it is extra stuff that we are doing on top of pipeline we have.
+     doOnNext() takes consumer as argument, it will be side effect for onNext(), so whenever onNext operator is called at that time doOnNext() will be called.
+
+public Flux<String> fruitsFluxFilterDoOn(int number) {
+	        return Flux.fromIterable(Arrays.asList("Mango","Orange","Banana"))
+	                .filter(s -> s.length() > number)
+	                .doOnNext(s -> {
+	                    System.out.println("s = " + s);
+	                });
+	    }
+So when we run this pipeline, whenever doOnNext() is called we are adding extra method call which is extra side process. Now if we run testcase, for every onNext function we will call doOnNext() and prints the related value
+    doOnSubscribe() will called, whenever it gets subscribe it gets subscription and print that. So whenever reactive stream is subscribed by using onSubscribe() then it will call doOnSubscribe()
+    doOnComplete() is called whenever call is completed  
+22. Exception Handling in Reactive Stream
+      Whenever there is a exception in reactive stream, that particular reactive stream will stop emitting the data from that particular point and pass error as data itself. So whatever exception we get from the reactive streams, those all will be data, so we need a way to handle exception in reactive streams. 2 ways
+   1. To handle that particular error
+   2. To resume when that particular error occurs 
+
+onErrorReturn operator
+     used to send default value when exception occurs 
+
+public Flux<String> fruitsFluxOnErrorReturn() {
+	        return Flux.just("Apple","Mango")
+	                .concatWith(Flux.error(
+	                        new RuntimeException("Exception Occurred")
+	                ))
+	                .onErrorReturn("Orange");
+	    }
+Here when we use concatWith operator, there is some exception occured so if we want to return default value we use onErrorReturn. So it will handle whatever error we have and returns default value
+
+onErrorContinue operator
+     It will continue the operation and drop the element that is causing the error. For example if we have 4 element and 2nd element causing an error or exception then it wil neglect that particular data and continue with rest of the data streams we have 
+
+ public Flux<String> fruitsFluxOnErrorContinue() {
+	        return Flux.just("Apple","Mango","Orange")
+	                .map(s -> {
+	                    if (s.equalsIgnoreCase("Mango"))
+	                        throw new RuntimeException("Exception Occurred");
+	                    return s.toUpperCase();
+	                })
+	                .onErrorContinue((e,f) -> {
+	                    System.out.println("e = " + e);
+	                    System.out.println("f = " + f);
+	                });
+	    }
+Here we pass each element to map(), when element is Mango we have exception but we need to get Orange also so we use onErrorContinue, if exception occurs also it will continue from next options
+
+onErrorMap operator
+    used to map ur exception to other custom exception we have. If u work in production ready appl we have lot of business exception that we created and whenever we get some exception from publisher, u will convert to custom business exception and passing those exceptions 
+
+ public Flux<String> fruitsFluxOnErrorMap() {
+	        return Flux.just("Apple","Mango","Orange")
+	                .map(s -> {
+	                    if (s.equalsIgnoreCase("Mango"))
+	                        throw new RuntimeException("Exception Occurred");
+	                    return s.toUpperCase();
+	                })
+	                .onErrorMap(throwable -> {
+	                    System.out.println("throwable = " + throwable);
+	                    return new IllegalStateException("From onError Map");
+	                });
+	    }
+Here whenever we pass Mango element to map() it will give RuntimeException where we convert to IllegalStateException using onErrorMap
+
+doOnError operator
+    It is similar to try catch, because it is not used to map an exception instead use to handle the exception 
+public Flux<String> fruitsFluxOnError() {
+	        return Flux.just("Apple","Mango","Orange")
+	                .map(s -> {
+	                    if (s.equalsIgnoreCase("Mango"))
+	                        throw new RuntimeException("Exception Occurred");
+	                    return s.toUpperCase();
+	                })
+	                .doOnError(throwable -> {
+	                    System.out.println("throwable = " + throwable);
+
+	                });
+	    }
+Here when we pass Mango to map() then we get RuntimeException 
+
+
+2. map
+
+The map operator applies a one-to-one transformation to stream elements and a method that converts one value to another, while flatMap does one-to-many. This distinction is clear when looking at the method signature:
+
+<V> Flux<V> map(Function<? super T, ? extends V> mapper) – the mapper converts a single value of type T to a single value of type V
+Flux<R> flatMap(Function<? super T, ? extends Publisher<? extends R>> mapper) – the mapper converts a single value of type T to a Publisher of elements of type R
+
+map: Transform the items emitted by this Flux by applying a synchronous function to each item
+   Each time when flux publishes 
+
+3. flatMap: Transform the elements emitted by this Flux asynchronously into Publishers
+    Used for asynchronous operation, consider for each of empid we need to call some db or external service to fetch employee details, this db or external service will return flux or mono.
+   We create getEmployeeDetails(), which take id and return employee details. Here we create a map which contains employee details. When anyone call this method it returns employee detail as Mono.
+   So here we have list of employee id and doing getEmployeeDetails() call which is mock version of any db or external service. Lets say this getEmployeeDetails() takes 1sec to response, so we keep sleep(1000)
+  So getEmployeeDetails() call takes 1 sec to response but in real case this time is not deterministic
+  When we run we can see it takes 8sec to run the appl, so basically flatMap is used for asynchronous operation and map used for synchronous operation 
+
+
+4. flatMap with Parallel scheduler
+      Previously we observed it takes 8sec to run, lets reduce the time to fetch all details by using window() method where we specify the size
+     Here we specify window(2), so it will wait for 2 elements to emit then it will pass to flatMap(). Inside flatMap, if we see the type of identifier, it would be Flux<String> which means we receive multiple items for identifier and apply another flatmap on this identifier to get employee details 
+  Now we have identifiers inside flatMap which has multiple ids and passing this identifiers to another flatmap, inside this flatMap we will fetch employee details 
+   For this nested flatMap where we doing db or external service call, we apply subscribeOn() which will take schedulers called parallel() which will perform operation on multiple threads 
+   If we run this test, it would take only 2sec to fetch all details, but without scheduler it would take 8sec to fetch all details, but sequence is not maintained here, mock data sequence is different but output is different since it run in random order
+
+5. concatMap - equivalent to flatMap but order will be maintained and it will take 8sec to complete 
+
+6. flatMapSequential - it will maintain the order and will reduce the operational time 
+
+Combine Reactive Streams using concat,merge and zip
+1. merge - used to merge the elements
+   mergewithdelay - it does not maintain the order and also not wait for any publisher to wait for the elements to emit 
+   If we put expectNext(), test case will be failed 
+2. concat - used to maintain the order even though we provide some delay at time of merging
+
+3. zip - used to return tuple of string and string  which return as[A,X] [B,Y] etc  
+   wait for all sources to emit the one element and combine this elemt once into a tuple
+
+4. zipWith - similar to zip 
+
+
+Handle Errors in Reactive Stream
+
+1. Whenever we receive any onError event then we wont receive any onComplete event
+
+2. doOnError() 
+  In imperative style we have try catch programming but in reactive style we have doOnError()
+   Here we create 3 elements, after emitting 3 elements we have error by adding RuntimeException
+   we have doOnError() which allows to react when any error occurs. So if any error occurs, we need to block the error and let error to propagate to upper layer of application
+   When we run we can see it will receive all element and then Runtime error occured, since error occurs it goes to doOnError() and receive onError event
+
+2. onErrorReturn() - used to return static value if any error occurs, so we wont get any onerror event instead we return static value 
+   When we run it display all 3 elements, then Default error information as RuntimeException occur it goes to onErrorReturn method
+
+3. onErrorResume()- take an alternative execution based on error
+  Here it prints 3 element and since error occurs, it will goes to onErrorResume() and print the message and add an elt to flux. So if when any error occurs we can do some alternative execution with onErrorResume()
+
+4.onErrorMap() - based on type of exception, u want to translate to business exception or to some custom exception 
+
+5. Retry mechanism is required when you lose connection with the source emitting the data and you would like to retry establishing the connection to the same source or a different one.
+
+6. retryBackOff - Before attempting a retry, when you would like to wait for a specific duration.
+
+7. doFinally - execute any code even after the error, similar to finally block
+    Inside doFinally(), it accepts Consumer SignalType like SignalType.ON_COMPLETE, SignalType.ON_ERROR, SignalType.CANCEL. Based on signal type we can perform different operation 
+    Now we call take(2) which receive only 2 element. In our case publisher emit 3 element, but take() accept only 2 element. After 2 elements we are cancel the subscription using thenCancel()
+
+
+Create Basic Application and Base classes
+    Creating two methods where we will get the information of all books with reveiws and we will get particular book with its review 
+
+1. Create domain classes like BookInfo which contain info about book, Review class which contain info about review and BookInfo class which has book info and list of reviews for those books
+
+2. Create Services and create method to return data from that particular service
+    BookInfoService which returns list of available books
+    ReviewService which returns list of reviews for books
+
+3. Create BookService class which returns all book with all reviews available 
+
+4. Create getBooks() which return list of Book info and list of reviews available 
+     public Flux<Book> getBooks() {
+        return allBooks
+                .flatMap(bookInfo -> {
+                    Mono<List<Review>> reviews =
+                            reviewService.getReviews(bookInfo.getBookId()).collectList();
+                    return reviews
+                            .map(review -> new Book(bookInfo,review));
+                })
+                .onErrorMap(throwable -> {
+                    log.error("Exception is :" + throwable);
+                    return new BookException("Exception occurred while fetching Books");
+                })
+                .log();
+    }
+
+Here bookInfoService.getBooks() will return all list of books available. Now for each book we need to return review from reviewService 
+   Inside flatMap, we get bookInfo which is entire BookInfo object and from that bookInfo object we get bookid and from that bookid we can get entire reviews over here and collect to list in Mono<List<Review>>
+   Now we map review object and bookInfo object to get single book info 
+   Now we use onErrorMap, so if any exception it will map to custom exception called BookException 
+
+5. Create unit test case for getBooks() in BookServiceTest.java
+   @Test
+	public void getBooks() {
+		Flux<Book> books = bookService.getBooks();
+		StepVerifier.create(books).assertNext(book -> {
+			assertEquals("Book One", book.getBookInfo().getTitle());
+			assertEquals(2, book.getReviews().size());
+		}).assertNext(book -> {
+			assertEquals("Book Two", book.getBookInfo().getTitle());
+			assertEquals(2, book.getReviews().size());
+		}).assertNext(book -> {
+			assertEquals("Book Three", book.getBookInfo().getTitle());
+			assertEquals(2, book.getReviews().size());
+		}).verifyComplete();
+
+	}
+First we call bookService.getBooks() which have all book which will get data from BookInfoService and ReviewService 
+
+6. Now we create method to get book by particular id, getBookById(long bookId)
+
+public Mono<Book> getBookById(long bookId) {
+		Mono<BookInfo> book = bookInfoService.getBookById(bookId);
+		Mono<List<Review>> review = reviewService
+                .getReviews(bookId)
+                .collectList();
+        return  book
+                .zipWith(review,(b,r) -> new Book(b,r));
+    }
+
+First we get particular book based on id using 
+Mono<BookInfo> book = bookInfoService.getBookById(bookId);
+Next we get list of reviews for that bookId. Now we use zipwith to combine book and review, from that we creates Book object 
+
+7. Create test case for getBookById
+
+8. To test exception in getBooks() we use mockito, so create BookServiceMockTest class
+   In order to use mockito, we use @ExtentWith(MockitoExtension.class). We create mock for BookService so we provide @InjectMocks, for BookService we need BookInfoService and ReviewService which is mock object, which means we are mocking these 2 objects inside BookService 
+   So whenever we call Flux<Book> books = bookService.getBooks();, it internally calls bookInfoService.getBooks() and reviewService.getReviews(1), so we have to mock those 2 methods which will call real methods 
+Mockito.when(bookInfoService.getBooks())
+                .thenCallRealMethod();
+
+        Mockito.when(reviewService.getReviews(Mockito.anyLong()))
+                .thenCallRealMethod();
+Finally we call stepVerifier and check the count of books
+  Now in order to check for exception we create another method getBooksMockOnError(), in this we inform when we call getReviews() we get exception and informed using thenThrow()
+
+9. retry and retry(n)
+     When u work with microservice architecture, when there is issue in one of service, then we try to retry that particular operation to get the data back again. In reactive programming also we need to maintain retry mechanism by using retry and retry(n) with n values
+    retry will try indefinite times of retry over here and in retry(n) we can define how retry u want when there is failure 
+
+retry
+  - we create getBooksRetry() with retry()
+  - so the function will retry infinite times when there is a exception
+  - To test we create separate method getBooksMockOnErrorRetry(), so when we run the test it will execute infinite times, so until u stop the operation the retry will happen and testcase will not complete 
+  - Now we use retry(3) in getBooksRetry(), and run testcase it will execute 3 times, so there will be 3 retry after 1st attempt so totally 4 times this operation will  happen
+
+
+retryWhen() operator 
+    When u want to do retry for particular operation like database call or network call or api's call. Suppose from any one of api call is failing and for that particular call only we want to retry using retryWhen
+   Create getBooksRetryWhen() with retryWhen(), this retryWhen() will take Retry as argument.
+   We create getRetryBackoffSpec() which represent after how many seconds we want to do retry mechanism. Previously retry was happening instanceously, once there is error retry will happen. But here we can specify how many retry we want and after how many time duration we want to do retry. So here we want to do retry 3 attempts with 1000 msec of interval
+   Now we create test method getBooksMockOnErrorRetryWhen() to check, when we run it will take 1sec duration to perform 1 retry operation 
+  When retry happens it should throw BookException not the exception thrown in getRetryBackoffSpec(). For that we need to propagate the exception to getRetryBackoffSpec()  by using onRetryExhausedThrow() which takes BiConsumer and apply only for BookException using filter()
+
+
+
+Adding BackPressure
+
+1. Create BackPressureTest.java with testBackPressure()
+
+       @Test
+	public void testBackPressure() {
+		Flux<Integer> numbers = Flux.range(1,100).log();
+        numbers.subscribe(integer -> System.out.println("integer = " + integer));
+	}
+When we run it will display integer from 1 to 100
+
+2. Suppose this method is not able to handle this particular amount of data, for this reason we use back pressure. For a version that gives you more control over backpressure and the request we use subscribe() with BaseSubscriber, which contain different method to handle BackPressure. 
+   Here we override hookOnSubscribe,hookOnNext,hookOnComplete,hookOnCancel,hookOnError. In this case we are emitting 100 records, but my receiver not able to handle that much data, so on hookOnSubscribe we can say that we need 3 records using request(3). So when we run we can see only 3 records 
+   So ur method is sending 100 records but we can see only 3 records. So after 3 records we dont want to get other records, so we want to cancel the process usinf cancel() in hookOnNext(). So after getting 3 records u will get cancel
+
+onBackPressureDrop() operator 
+    used to handle all remaining data thats been dropped out. Suppose Flux is emitting 100 record and we requesting for 3, rest of the records are dropped off so that particular data will handle in onBackPressureDrop()
+    It will not goto request all data everytime to publisher, suppose if we are doing operation on database, everytime calling db operation is not feasible. So publisher will send all data and this operator will handle all those data in inner queues. Everytime it wont hit those publisher, we will get data from inner queue
+   We create testBackPressureDrop(), so whenever we subscribe we will call onBackPressureDrop() which takes consumer of type Integer, since our Flux is integer and print  the value and whenver value is 3 we call hookOnCancel(), to cancel that operation
+   If we run we get 3 values from receiver and all dropped value from 4 to 100 is taken care froom onBackPressureDrop(). So everytime we are not calling that publisher, once we call publisher this will store all values in inner queue and from that we emit the data
+
+onBackPressureBuffer Operator
+     It will be buffering data that provided over here. Suppose we are emitting data over here and we want to keep some data in buffer, in that case we use onBackPressureBuffer
+   We create testBackPressureBuffer(), so whenever we subscribe we will call onBackPressureBuffer() with buffervalue and Consumer as argument. If we run test case we see 3 values and next 10 values would be store in buffer  
+
+
+onBackPressureError() operator 
+   So whenever we call cancel(), so there is an error (ie) receiver is not able to handle those data that ur publisher is sending over here , the publisher is sending more data than this particular receiver can handle 
+   So when we run testBackPressureError(), it generates 3 values, then we call cancel(), then it generates error by calling hookOnError()
+
+
+Hot and Cold streams 
+    Cold stream is a stream of data that u can subscribe to and get infinite stream of data everytime. Suppose ur stream is sending data from 1 to 10 and whenever u subsribe to that, u get data from 1 to 10. Example are http calls or database calls (ie) if u give same set of query data that u want, it will always give same set of records for ur operation 
+   Hot stream will send data at particular interval time, suppose one stream is continuously emitting the  data and receiver subscribe that stream, u will start receiving the data from that particular time. Example are stock tickers which send data of stocks of each and every seconds, cricket score etc. So whenever the point of time u subscribe, u will receive data from that time, we wont get all data from previous duration
+
+1. Create HotAndColdStreamTest with colStreamTest() which is cold stream where for botj subscriber we will get data from 1 to 10
+
+2. Create hotStreamTest(), we create flux of 1 to 10 element in 1msec delay. In order to create hotstreams, we need to publish this particular stream using publish() which belongs to ConnectableFlux<Integer> and we need to connect to particular publisher.Now we use this publisher and subscribe to it 
+   When we run test case, we can see subscriber2 will execute after 4sec of subscribe1
+
+
+Debugging reactive stream 
+   In reactive stream we wont get exact point where we get exception because it is asynchronous programming 
+1. In fruitsFluxOnErrorMap() it generate exception, but actual exception occured inside map() so in order to debug we use Hooks.onOperatorDebug(). If we run test case, we can see from which method error occurs, but it is not bext way
+2. Next way we can provide checkPoint() after each operator
+3. But goodway for doing debugging in production is using reactor tool agent, for that we provide dependency
+<dependency>
+    <groupId>io.projectreactor</groupId>
+    <artifactId>reactor-tools</artifactId>
+</dependency>
+and provide ReactorDebugAgent.init() and ReactorDebugAgent.processExistingClasses() inside the test methods and when we run it will provide all related information about exception
