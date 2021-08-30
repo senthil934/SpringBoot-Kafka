@@ -1,0 +1,395 @@
+http://www.myjavablog.com/2018/08/21/dockerizing-a-spring-boot-with-mysql-application/
+
+http://www.myjavablog.com/2018/08/31/connecting-to-mysql-docker-container/
+
+1. Create mysql image called mysql_creation
+  >docker run --name=mysql_creation -e MYSQL_ROOT_PASSWORD=root -e MYSQL_USER=root -e MYSQL_PASSWORD=root -e MYSQL_DATABASE=test -d mysql
+
+Update the image name in database properties files
+
+2.Display all containers
+  >docker container ls
+3.docker ps -a
+4.Start the mysql container
+  >docker container start d513abd981ea
+5.Execute mysql image inside docker
+  >docker exec -it mysql_creation mysql -uroot -p;
+6.Build the Docker image
+   >docker build -t spring-boot-docker_mysql_merge .   
+7.Link and Run the docker image
+    >docker run -t --link mysql_creation:mysql -p 1001:8555 spring-boot-docker_mysql_merge
+
+
+Spring boot with Mysql in docker
+    After installing Docker, just login in Docker desktop using Docker Hub credentials
+1. We create mysql as separate container, in DockerHub we have mysql image  
+2. Go to powershell, to display all images we give
+     >docker images
+3. Create mysql image
+     >docker pull mysql
+     >docker images
+4. Create mysql instance
+     >docker run --name mysql-standalone -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=jpa -e MYSQL_USER=root -e MYSQL_PASSWORD=root -d mysql:latest
+
+5.Display containers
+  >docker ps -a
+
+6. In spring boot project, update mysql name under url
+spring.datasource.url=jdbc:mysql://mysql-standalone:3306/jpa
+
+7. Provide name for spring boot project under plugins 
+<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+				    <finalName>spring-boot-mysql</finalName>
+				</configuration>
+			</plugin>
+
+8. Give mvn clean install and create spring-boot-mysql.war file inside target folder
+
+9. Now we want to package this appl as image so we create Dockerfile inside project
+   - Springboot needs jdk to run, so we use openjdk
+FROM openjdk:8
+   - Adding jar file inside target
+ADD target/spring-boot-mysql.war spring-boot-mysql.war
+   - Exposing port no
+EXPOSE 8081
+   - Defining entry point
+ENTRYPOINT ["java","-jar","spring-boot-mysql.war"]
+
+10. Build image from docker file
+SpringBoot-JPA> docker build . -t spring-boot-mysql
+
+11. To display generated image
+    >docker images
+
+12. 
+
+
+
+Introduction to Container
+     
+What is container ?
+     A container in general is used to detach an application and its dependencies from rest of the system. We virtualize its OS level 
+    Containerization of a process is creating a container dosent need any tool called Docker. Containers are kernel level abstractions which tends to function in  isolation. 
+    Containers by default follows 2 major concepts called CGroups and Namespaces 
+
+CGroups and Namespace
+   - They help in segerating processes along with resource requirements. CGroups are way to assign resources like CPU, Memory to a particular process
+   - Namespace on otherhand allow processes to run in complete isolation which means the process running in its own namespace is not aware about anything running in host machine 
+
+
+What are containers?
+     - Containers are basically a lightweight component or a lightweight image which are standalone executable packages which you can run inside sandbox environment
+     - It is platform agnostic and isolate software from the surroundings
+     - Typical exampke of a real world containerization is shipment where you want to ship ur products from one place to another. However u dont want to get it damaged that is why we containerize
+     - Similar to that we containerize our appl when we are doing the deployment along with other deployments and our deployment shouldnt get messed up, that is why we have separate containers to safeguard our appl 
+
+
+Why do we need orchestration?
+    The containers are already separated then why do we need an orchestration
+    We have a hardware or server then we have host OS, then we have containerizing engine which is docker engine running over OS and then over that we have different docker containers, inside the docker containers we have applications
+   If u have single server this is how an architecture looks like. If u have more and more servers then we are not able to manage the containers we will have to have the configurations to deploy to different nodes and how do we know what is deployed to which machine and which appl is running in which server that is when we will get the help from Kubernetes
+
+What is Kubernetes?
+    - It is nothing but a container orchestration platform, it is open source platform which was created by Google in 2014 and contributed that to the cloud native computing foundation which is managing kubernetes  currently 
+    - It can group containers that create a single appl and it splits into logical units for easy management and discovery. That is how Kubernetes identifies how many nodes are there, kubernetes have concept called Pods which are nothing but nodes which are nothing but servers where different containers can be deployed
+   - In a pod we have single container or multiple container
+   - kubernetes is a open source container management tool which is used to automate the container deployment. It can also scale up and scale down and also load balance ur containers inside ur ecosystem 
+
+Features
+1. Horizontal Scaling
+      - Lets say we have deployed a pod or different containers, your containers can be scaled, when u have it configured automatically 
+
+2. Self healing
+      - It restarts the containers whenever it fails and  it replaces and reschedules these containers whenever a node dies, it automatically kills these old containers which do not respond to the user queries so they will be immediately removed out of your network 
+      - These are done based on the health checks which Kubernetes does internally
+
+3. Load balancing & Service discovery
+      - There is no need for us to modify our appl code in order to make us familiar with different service discovery mechanisms. Kubernetes gives containers their own IP addresses and a single DNS name for a set of containers and they can do load balancing across them 
+
+4. Automated rollouts and rollbacks 
+      - Kubernetes progressively rolls out the changes to ur appl and also its configuration while monitoring the appl healths and it makes sure that it dosent kill all ur appl instances at the same time so 
+      Lets say we have 4 different scaled up application so we have 4 instances of the same appl running. So when  it is releases these deployment one by one and make sure that your health of appl  is maintained and thats how it rolls out. If there is a problem kubernetes will roll back to change automatically for you
+
+5. Storage Orchestration
+      - kubernetes can automatically mount the storage system based on ur choice, whether it could be a local system or public cloud storage provider like AWS or GCP or any other network systen such as NFS or cluster 
+
+6. Batch Execution
+      - Kubernetes can also manage your batch and also the continuous integration workloads. It can replace the containers whenever it fails which acts as having these batch execution seamless 
+
+7. Configuration Management
+      - Kubernetes has the flexibility which provides deploy and update secrets the appl configurations without even rebuilding ur  image and without even exposing the secret data from ur configuration stack 
+      - So we dont have to redeploy ur appl when u have to change any configuration in ur kubernetes image, so u dont have to rebuild ur image, u can have a configuration outside the image which will be inside kubernetes platform and u can change that whenever u want and you can redeploy that particular image in a different container 
+
+Kubernetes Architecture
+    - Containers becomes a goto way for developers to design appl and package them in the form of images so that they can deploy in the container runtime which they can test in different stage of env
+    With Kubernetes coming into picture, orchestration of containers have become much simpler compare to how it was before when there was only Docker 
+
+   Like anyother master slave architecture, Kubernetes also have masters and slave node. These are typically called kubernetes master and slave nodes are called Kubernetes nodes or minions or worker nodes or just node.
+The different components in master nodes are 
+
+1. API Server
+      Inside master we have API server, any interaction with kubernetes cluster will happen through API server which has REST api and we can interact with components inside the cluster using API server. There is CLI as well called kubectl, we can use that to interact with API server and kubernetes takes care of controlling whole ecosystem using this API server 
+   
+2.Scheduler 
+    It will schedules task to the worker nodes, it also has other info about scheduling task which need to create different slave nodes so that it can use that for accessing the quality of service requirements
+
+3. etcd 
+    It is a key value store which is completely distributed because kubernetes is distributed platform so kubernetes uses etcd as key value store and it is present either inside the master or outside the master. So we can have standalone instance configured or u can have inside master and this will be storage space for kubernetes cluster. All the information about metadatas, configurations, secrets, subnets all these configuartion info are persisted inside etcd 
+       Since kubernetes is distributed they want to use distributed key value store and etcd is written in "Go" and kubernetes uses it for storing metadata info about all the cluster nodes
+
+4. Controller manager 
+       It is like daemon process which is reconcile all the health of worker nodes. So kubernetes needs a process in order to identify if all nodes are up and running and if there is any problem, this controller manager will go and restart these worker nodes with the corresponding configuration retreive from etcd 
+
+The different components of worker nodes are
+1. kube-proxy
+     It is the component which has network proxy layer across the node. So if u want to interact with processes running inside node,we need to talk with kube-proxy and kube-proxy allows to talk with containers which are running inside these nodes 
+     This is like abstration layer or networking layer which act as a load balancer for talking with processes inside worker nodes
+
+2. Docker runtime
+      Kubernetes uses either Docker or rocket container, in order to host different container inside a hode
+     Every node will have kube-proxy and docker at runtime
+
+3. Kubelet
+     It is another daemon process which will interact with master node and all the tasks are retrieved by kubelet and kubelet goes inside node and execute it 
+     Inorder to get specification of configuration for slave node, kubelet goes to API server and retrieves the specification instruction and creates these container runtime inside these nodes
+
+    So when we are deploying the appl inside kubernetes cluster we are worry about master, because master is set by default, however the slave nodes are one which are created by master by every process we deploy 
+
+How slave node is designed?
+    In order to do that we understand different components inside slave node 
+    1. kube-proxy 
+    2. Docker runtime
+    3. Kubelet is daemon process which will interact with master and retreiving all tasks. Kubelet will do api calls to API server in order to retrieve info abt the container at runtime
+    4. Over this we have Pod, every deployment in kubernetes cluster runs in a pod. Pod consists of different components like 
+     - IP address - every pod is assigned with unique IP address
+     - Volume - it is linux volume which are different processes which are running inside the pod 
+     - Over this runtime will be Docker instances, in a single pod we can have multiple docker containers. So pods can have multiple containers or single containers and they share same IP address and volume.
+      Consider we have 3 microservice to be deployed we can deploy them in different container inside the same pod, so that way we will have whole deployment controlled in same pod. If there is problem we can destroy whole pod and put in different node, also node can have multiple pods 
+       There is no restrictions on number of pods inside a node, so there could be multiple pods, inside pods there could be multiple containers 
+
+
+In general Kubernetes follows master slave architecture, under Master we have
+   1. API server for getting REST API connection or command line queries from user
+   2. Scheduler which schedules task inorder to create schedules or execute tasks inside slave nodes
+   3. etcd is distributed key value store which kubernetes uses for storing metadata information and info abt slaves and maintain the state of slaves
+   4. Controller manager does reconcilation of state and it checks whether slaves are in healthy state and if there is problem it instructs the scheduler inorder to deploy new instances and destroy the old ones
+
+Slave nodes consists of pods and pod can have multiple docker container and node can have multiple pods. Every container inside the pod share same volume and ip address. Inside node there is kube-proxy which will allow incoming traffic into the containers and routes all these requests to container
+   Docker runtime present in order to control and provide runtime for the containers inside pod. Kubelet are daemon process which gets info from master in order to execute task inside the node
+
+
+Kubernetes Architecture - Services and Deployment 
+
+How do we deploy our applications inside these pods?
+    There are 2 concepts called service and deployment when u consider workload management. Workloads are nothing but running pods inside kubernetes so any deployment running inside kubernetes is called workload. Workload means service or deployment which we have deployed 
+    Consider we are deploy an application called app1 in one pod and another appl app2 deployed in another pod. So whenever we deploy an appl into a pod that gets translated into deployment, so these are called deployments
+    We will be deploying some containers inside these pods so that these can run as workloads and these are called deployment. So green boxes are called deployment.
+    If there is failure in one of pod, so in our case app2 goes down so control manager knows that app2 goes down and it will respawn new instance however there is no guarantee that it will be started in the same pod, so there could new pod with different IP address, so IP address keeps on changing .
+    So when we try to access deployment or basically REST endpoint and if rest endpoint is exposed inside app1 and app2 and if we need to access it, if IP address keeps on changing so we cannot use IP address, so in order to do that we need domain name server.
+   In Kubernetes if u need to access a pod or a deployment you need to deploy something called a service, a service is basically REST object, in Kubernetes world everything is object so the deployments are all objects and services are all objects. 
+    In order to connect to a deployment you need to connect to service and service has DNS on it, so we have to provide a name and it will having routing info to particular pod. So it use label selectors which are basically tags using which we can group a particular deployment and service 
+   In our case app1 is label selector because both service and deployment has app1, even if app1 pod gets killed and rebuilt, service will be able to connect to that particular pod because its all linked by label selectors.
+  In addition to provide a layer or an abstraction over deployment, rest also helps in load balancing the pods. So if there are 3 instances of a pod running for same appl, the service provides load balancing these 3 pods, so service can do load balancin, it can do domain name service routing and also it has port mappings 
+  So every deployment or appl would require a service so that we can connect to different deployments via services
+  If we need to connect to app2 deployment we need to deploy a new service for app2, so here label selectors will help u in detecting that this particular service corresponds to this particular deployment.
+   In addition to this control manager has a feature called Replica sets, so if u want to scale a pod into 4 instances, you can provide replica set of number 4 and automatically controller will create 4 instances of the same pod and all those 4 will have same label selectors so that the service can do load balancing on them, so these are controlled at control  manager level, the service will do only load balancing 
+   When you need a storage service or storage volume, these will be mounted on to the pod directly.
+   So this are different components of Kubernetes architecture 
+
+Generally kubernetes have API server using which all commands are triggered, so any CLI command u trigger from command line interface goes to API server and kubernetes understands and interacts with different components via API server. Control manager takes care of creating and destroying pods so it holds the information about what pod needs to be created.
+   Control manager also provides feature for auto scaling by using replica sets. Pod is a basic block inside kubernetes which runs container runtimes, it has info on how a container should be created and run. 
+   Pods are abstracted using a layer called service and workloads inside pods are called deployments, service creates an layer over deployments. In order to access different deployments, services will create load balancing across different replica sets. Using the service we can either do load balancing or domain name routing. Using persistent volumes we can mount these when we create and destroy pods.
+
+
+
+
+What is Kubernetes?
+   Kubernetes is a greek word for helmsman or captain of ship and if we look at logo of kubernetes it represents the helmsman wheel or sterring of ship,also kubernetes is referred as k8s as 8 char between k and s 
+  - It is container management or orchestration tool
+  - Developed by Google lab and later donated to CNCF(Cloud Native Computing Foundation)
+  - It is open source, and written with GO programming language or Golang, initial release in June 7th 2014
+
+
+What is container management tool?
+   It manages containerized application which automates deploying,scaling and managing containerized application on a group of servers 
+   We have containerized management tools like Kubernetes, Docker Swarm and Apache Mesos Marathon
+  - Now we know Kubernetes is container management tool that manages containerized applications which means manages appl available on a container platform like Docker and different processes it takes care in this management are deploying, scheduling, scaling and load balancing etc
+
+Kubernetes
+    |
+container management tool
+    |
+Manages containerized applications
+    |
+Applications available on a container platform like docker
+
+
+What is containerized application?
+     For that we understand container platform called Docker
+     So in containerization, a developer packages the appl along with all its dependencies and libraries and the entire env in a box that we called as container. This can be shipped using a container platform called Docker and that it can be deployed on different systems.
+     One of the advantages of doing this kind of deployment is because we know that appl is avialable along with all its env and dependencies so it will work fine on every system and issue of appl working on one system and not working on other system is taken care of using containerization
+
+What is Docker?
+    Docker is a tool designed to make it easier to deploy and run appl by using containers. 
+    Containers allow a developer to package appl with all its dependencies and all its parts and ship it out as single package 
+
+Where Kubernetes fit into containerization?
+     In real world it is not a single container, large organization use multiple containers for every appl and there are 10's and 100's of containers used for every application. 
+     This is done to ensure availabilty so that the appl is always available and take care of load balancing so that not a single server has lot of load and the load is distributed properly. We also take care of scaling up and scaling down based on user load and therefore we use multiple containers or cluster of containers
+   In this scenario where we have so many containers we have to take care of lot of processes like 
+     - deploying of appl on multiple containers and then on multiple servers, 
+     - scheduling the deployment 
+     - other processes like scaling up and scaling down based on load of server  
+     - Load balancing so that we distribute the load among all the servers and all the platforms 
+     - We take care of batch execution processed, rollbacks and monitoring of all these containers
+    Now all these processes will be very difficult if you want to do it manually and will be not very efficient. So we need automated system or tool that can take care of all these processes in an automated way and therefore we have container management tool or container orchestration engine like Kubernetes or docker swarn etc
+   So Kubernetes is container orchestration engine that takes care of management of containerized apps and and by management it takes care of all processes for containerized apps
+   In generally Docker is creates containers and Kubernetes will manages the containers
+
+Features of Kubernetes
+1. Automatic bin packing
+       We have 5 servers and each of these servers have memory of 10GB. We have list of jobs and we need to package these jobs on these 5 servers in the most efficient way so that we do not compromise on resources and we have complete availability for all these applications.
+     Now these jobs or these applications have different memory requirements so we have to take care of this packing process in the most efficient way. Now kubernetes will help us and will take care of this process, it will take care of packaging these jobs or these containers on these servers or bins in the most efficient way 
+   So now we understand automatic bin packing and Kubernetes will package our applications and schedule the containers based on the memory or the resources requirements and it will do this while not sacrificing on the availability of any of these applications and it will also save the resources 
+
+What are Pods and Nodes?
+   In Kubernetes we do not interact with the containers directly, the containers are wrapped inside a functional unit which is called as pod. Now pod can have single container or multiple container and pods are housed inside nodes, so node can have single pod or multiple pods 
+
+   In automatic bin packing,we have the option to specify how much resources like CPU and memory will each container inside a pod will need and if we specify this the process of automatic bin packing becomes even more efficient, because now the kubernetes scheduler can make better decisions on which node to place the pods on 
+
+
+2. Service discovery and Load balancing
+      In Kubernetes we need to understand how does it organizes the containers,we have discussed that Kubernetes will not run the containers directly, it wraps one or more containers into a higher level structure called pod.
+    So containers are present inside pod, a pod can have single container or multiple containers, pod also have storage resource or volume for every pod and usually there is a single volume for all the containers  inside the pod, and every pod has unique IP to each and every pod
+  We can multiple pods and pods that have same set of functions are abstracted into sets called services. There will be single service run with multiple pods and this service is given DNS name by kubernetes. So with this system kubernetes has a complete control over network and communication between pods and do load balancing across them 
+
+3. Storage Orchestration
+       Containers that running inside the pod need some way to store their data or they need some storage option or volume. Now we can have volume or storage resource in every pod and usually there is a single volume for all the containers inside a pod, so usually single volume is shared within all containers in a pod
+     Kubernetes provides us a option to select the volume storage resource like local storage in ur system or cloud storage like AWS or network storage like NFS 
+   
+
+4. Self Healing
+      Kubernetes takes care of a lot of processes and monitoring for your appl. For example if a container failes, kubernetes will take care and restart the container, if complete node dies kubernetes will replace and reschedule the containers of that node or any other available node 
+     Kubernetes has a monitoring system and kubernetes checks all the containers and if any container does not respond to this monitoring system or  user defined health check, kubernetes will kill the container and it will take care of the availability of appl. The process that takes care of all this in kubernetes is called Replication Controller
+
+5. Automated rollouts and rollbacks
+       Rollout is whenever we make any changes to the appl or we deploy new changes or new features to our appl and just in case we have to revert those changes and we have to restore the appl to the previous state which is called rollback 
+      Now kubernetes takes care of rollout and rollbacks in automated way and it does all this while taking care that there is no downtime of the application. So kubernetes can progressively rollout the changes to the application and while it is rolling out the changes it also monitors the application and just in case if there are any issues or something goes wrong it will rollback and all this time, the appl will be up there will be no downtime 
+
+5. Secret and Configuration management
+      In kubernetes we have two objects called secrets and configmaps
+
+Secret
+     1.Secret is a object in kubernetes that handles sensitive data like passwords, keys, tokens etc
+     2. Secret is a kubernetes object and it is created outside pods and containers. So inside a pod they can be single or multiple containers and secret is managed and created outside the pods and containers
+
+Configmaps
+     1. It is a object in kubernetes that handles the configurations 
+     2. Configmaps is kubernetes object and it is created and managed outside the pods and containers. The advantage is since there are located outside and not coupled with pods or containers, it is easy to manage both the sensitive data as well as the configuration
+
+So in simple words secrets is a kubernetes object that separates sensitive data from pods and containers and configmaps is a kubernetes object that separates configuration from pods and containers. So with this feature in kubernetes we can manage secrets and configurations separately from the image and also it helps to deploy and update the secrets and configuration without rebuilding the image
+  Secrets and configurations are stored separately in a data store called ETCD which is a key value datastore, there is a limit for secrets and max size is 1MB
+        
+6. Batch Execution
+      Batch jobs require an executable process to run to completion. In kubernetes run to completion jobs are primarily used for batch processing and each job can create one or more pods based on the requirements
+      During job execution in case any container or pod fails it will be rescheduled on any other available node and job controller will take care of all this in case if required it can run multiple pods in parallel and can scale up if required. Once the job is completed, the pod will move frpm running state to shutdown state 
+     Now with all these features of batch execution in kubernetes support batch execution, long running jobs and replaces failed containers
+
+8. Horizontal Scaling
+      In kubernetes we can scale up and scale down the containers, now scale up means to create more replicas of the container if required and scale down means to kill the containers in case the containers are not required
+     In kubernetes scaling up and down are done by using commands or from kubernetes UI dashboard or it can taken care automatically based on CPU usage 
+     There are 3 tools in Kubernetes like replication controller, manifest file and horizontal pod scaler
+
+Replication controller - It is structure that enables to create multiple pods and it will make sure that is number of pods always exist. In case any pod crashes replication controller will replace it and replication controller gets the information about the number of pods to create and make available always from a file that is called manifest file
+    The manifest file contain a property called replicas with count 3, so replication controller will create and manage 3 replicas of the pod
+    Replication contoller called as RC or RCS and ensure that the desired number of pods are maintained always. Now we also have another tool called Horizontal auto scaler which monitor the CPU utilization and based on this matrix it can send a message to replication controller or set the number of pods required and based on that replication controller will maintain that number of pods
+    So there is a controller manager in horizontal pod autoscaler which looks every 15sec, and it keeps on monitoring the CPU utilization and based on those matrix it can send the signal to replication controller to maintain the number of pods 
+
+
+Kubernetes Architecture 
+     In Kubernetes we have a master, u can think of master as a manager in a team and then we have worker nodes and u can think worker nodes as team members in a team. So we have a master and worker nodes together they form a team or a cluster. So the master manages these workers and they form a team and in kubernetes we call this as clusters
+     When we deploy kubernetes we actually get a cluster and cluster is made up of nodes or set of machines which are called as nodes. We have master nodes and worker nodes and they should be atleast 1 worker node and atleast 1 master node to form a cluster.
+    In earlier days of kubernetes, the worker nodes were called as Minions, we call them as worker nodes or just nodes. There can be multiple clusters in kubernetes.
+
+Nodes and Pods
+    A node can be physical machine or virtual machine or VM on cloud. Inside node we have pods and there can be 1 or multiple pods in a node. Inside pods we have containers like Docker containers and they can be one or multiple containers in a pod
+
+In generally kubernetes have master, worker nodes, nodes will have pods, pods will have containers. Master node manages both worker nodes and pods. Limits for nodes in cluster is 5000, pods in 150000 and 300000 total containers 
+
+Master Node:
+    It is responsible for managing the cluster and it basically monitors and manages nodes and pods in cluster. So whenever there is a failure of a node it will take care and move the workload of the failed nodes to some other working node and it will take care of the overall working in kubernetes cluster. It has 4 components
+
+1. API server 
+     - It is responsible for all the communications and API server exposes some API so that the user can interact and to call API we can use commandline tool or from UI 
+    In general API server exposes some API's for every communication or opeartion and user can interact with these api's from command line or from dashboard UI. The command line tool is called kubectl written in Go programming language and we use UI called kubernetes dashboard. 
+
+2. Scheduler 
+      - schedules the pods across multiple nodes
+      - In kubernetes worker nodes can be physical or virtual machine and they can have different infrastructure or hardware configuration. Now scheduler knows about these configurations of nodes and whenever it has to schedule a pod, it will check what node will fit best for the configuration or hardware requirements of a pod and accordingly it will schedule the pod of required node
+     - This is a component on master that watches the newly created pods that have no node assigned and select a node for them to run and it obtains all this information from ETC
+
+3. Controller manager - It is a component in master that has different controllers which runs different monitors. We have kube controller manager and cloud controller manager 
+   1. Kube Controller Manager runs some monitors that will inform the master in case there is any node which has failed or it is not available, so that necessary actions can be taken. It has different controller like
+Node Controller - responsible for noticing and responding when nodes go down
+Replication controller - responsible for maintaining the correct number of pods for every replication controller object in the system
+Endpoints controller - populates the endpoints object 
+Service account and token controllers - responsible for maintaining accounts and API access and all namespaces
+     So kube controller manager makes sure that nodes are running all the time, it also check the health of the cluster and also check the correct number of pods are running as per the specification file
+   2. Cloud controller manager, sometimes when we are using the infrastructure of a cloud provider, all the monitors that needs to run for interacting with the cloud service provider is done through cloud control manager. It has different controllers like Node controller, Route controller, Service controller, Volume controller
+
+
+4. ETCD - It is an open source database or key value datastore where it stores all the data in kubernetes cluster
+    Only API server is the component that can directly interact with ETCD and no other component will interact with ETCD directly. ETCD can be part of kubernetes master or also be configured externally in the image 
+
+
+Worker Node
+    Worker node can be a physical or virtual machine in kubernetes cluster and every node should run on container runtime env like Docker. There are 3 components in worker node like
+1. Kubelet 
+      It is agent or utility running on each worker node and it is the component that interacts with the master node using API server
+     Kubelet gets the information from some specs called PodSpecs and based on the specifications it makes sure the containers are running accordingly on the pods. In case there is any issue with any pod it will try to restart the pod on same node or it will start the pod on different node
+    In general Kubelet is a component running on each node which make sure that containers are running in a pod and whenever there is an issue with pod it will start the pod on same or different node and also interacts with master component using API server. Kubelet will manage only containers which are created by kubernetes, if we have any container running on node that are not created by Kubernetes it will not manage
+
+2. kube-proxy
+      It is core networking component in a node and it can also interact with the external world. All worker nodes run a daemon called kube-proxy which watches API server on master node for the addition and removal of services and endpoints  
+
+
+3. Container runtime 
+      It is a software responsible for running containers and the most common container platform used with kubernetes is Docker.
+      So in a node we have pods, pods have containers. Now with kubernetes we can use several container runtime like Docker, ContainerD,Cri-o,Rktlet,Kubernetes CRI
+   In general, kubernetes does not have the capability to directly handle containers and it needs a container runtime like docker 
+
+
+You can see here API server component of the master nodes can interact with kube-proxy, kubelet component of the worker node and this is how flow of information takes place. In master node we have API server, Scheduler, control manager, ectd and in worker node we have kube-proxy, kubelet, container runtime like Docker. All this is a part of cluster and cluster can have multiple nodes and can be one or more master node and master controls and manages the worker node 
+
+Installation Kubernetes
+1. Online Kubernetes labs (Kubernetes Playground, Play with k8s, play with kubernetes classroom)
+      These are some online labs that have everything setup, we have to just go to that url and u can start using it
+Goto Google - Give Kubernetes Playgrounds - where it will open 
+
+https://www.katacoda.com/courses/kubernetes/playground
+
+2. Kubernetes Installation tools
+      - Minikube - open source tool to run kubernetes locally on your system. It runs a single node kubernetes cluster inside VM on ur system. We have master, worker and with docker preinstalled 
+      - kubeadm
+
+3. Cloud based Kubernetes service
+      - GKE(Google Kubernetes Engine)
+      - AKS(Azure Kubernetes Service)
+      - Amazon EKS 
+
+Handson
+1. Goto Kubernetes Playground - click Start Scenario which has 1 master node and 1 worker node 
+2. Start Kubernetes cluster by clicking launch.sh 
+3. Run "kubectl cluster-info dump" which will give information about the cluster 
+4. click continue
+5. click Next Scenario
+6. click Start Scenario of Launch Single Node Cluster
+
+
+AWS Deployment
+    We study how to deploy spring boot appl in AWS, for this we use 2 services provided by AWS services
+1. EC2 instance - Elastic Compute Cloud - used to create VM's for our appl
+2. S3 Bucket - Simple Storage Service - where we can copy our artifacts like jar or war files required for appl
