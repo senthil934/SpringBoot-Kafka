@@ -1,0 +1,489 @@
+Why write test?
+    The point of writing automated tests noy so much to to verify that the code works now.
+    The point is to verify on an ongoing basis that the code continues to work in the future. So when you write a test case someone else makes a change to ur code, they are running ur test case and if they break the functionality, ur test case is going to catch and this is not something we can do with manual testing, thats the reason we write automated test cases 
+
+
+Why do we use testing framework?
+     Consider we have Calculator class with add() which takes 2 integer and returns the sum
+public class Calculator {
+   public int add(int a, int b){
+       return a+b;
+   }
+}
+Now we want to test it, we are not using any framework, we are writing code to verify it 
+
+Calculator calc=new Calculator();
+int sum=calc.add(0,1);
+if(sum != 1){
+   System.out.println("Test failed");
+}
+
+We create a new instance of Calculator class and pass some input values and get output and then verify that the output is what u expect. Here we have 2 things, expected value (ie) what u want the method to return and actual value is where u pass the inputs to this method under test and then u execute. Finally we verify expected value matches the actual value 
+   But for negative number this test case is not gonna work, for that we create new test and pass negative number and verify the result. If we have many test case and when we run then u have a whole lot of things printed to the console and developer has to gone through all of them.
+   So if we want to write test case we need to do some steps
+1. Preparation
+2. Provide test inputs
+3. Run the tests
+4. Provide expected output 
+5. Verify result
+6. Do something to alert developer if test failed
+
+So among these things what are the steps that we do for every test execution (ie)
+1. Preparation
+2. Provide test inputs
+3. Provide expected output
+Whereas running test, verify result and alerting the message is common for every test case. So Junit is going to providing those 3 things over here which u know u will have to do for any test case.
+   So when u run Junit, we do the preparation for the class in test, we provide test inputs, we provide test output. Next Junit will run those test and Junit has API's to verify the result and finally alerting the developer 
+
+Why Junit5?
+JUnit 4 dosent have any problem but
+  - JUnit 4 is more than 10 yrs old, as a result of JUnit4 for being around for a while it is not been updated with new testing patterns 
+  - Not up to date with newer testing pattern 
+  - Not up to date with new Java language features 
+  - Monolithic architecture, since JUnit4 has one jar file 
+  - Bugs and feature requests piled up, 
+
+
+JUnit5 architecture
+   JUnit4 is single jar file which contains everything but in JUnit5 is kind of broken down a litten bit. 
+   JUnit5 architecture starts with core platform which comprises the library of JUnit which is involved running the test, providing a way for u to call the test run, provides an execution context. So developers dosent directly interact with platform instead we use JUnit API
+    1. JUnit API is called Jupiter which use to write Test annotation or u use assert, so developers will interact with Jupiter
+    2. Vintage is another set of API's which used when u r running older JUnit tests. JUnit is not technically backward compatible out of box but they provided something that u can use to run ur existing test so  we dont have to rewrite 
+    3. Ext (3rd party) which lets to extend 
+
+Jupiter is one way which u can use the platform, lets say we dont like JUnit API, we can come up with our own API and still use underlying test engine to run ur test. Test engine is Platform which runs ur test and Jupiter is API which informs test engine about wht test to run and how to run. Vintage is new programming to run older tests. Ext is we are creating our own extensions and have it still use the platform to run ur test 
+   These are the 3 components in addition to platform. These are corresponding to maven dependency that u r going to be using when u write junit.
+  So if u r using JUnit5 then we need to add dependency for Jupiter and core platform. If we want to write older test then we need to give vintage dependency.
+
+1. create maven project with 
+
+<properties>
+    <maven.compiler.target>11</maven.compiler.target>
+    <maven.compiler.source>11</maven.compiler.source>
+    <junit.jupiter.version>5.4.0</junit.jupiter.version>
+</properties>
+<dependencies>
+    <dependency>
+       <groupId>org.junit.jupiter</groupId>
+       <artifactId>junit-jupiter-engine</artifactId>
+       <version>${junit.jupiter.version}</version>
+       <scope>test</scope>
+    </dependency>
+    <dependency>
+       <groupId>org.junit.jupiter</groupId>
+       <artifactId>junit-jupiter-api</artifactId>
+       <version>${junit.jupiter.version}</version>
+       <scope>test</scope>
+    </dependency>
+</dependencies>
+
+junit-jupiter-api: API for writing tests using JUnit Jupiter
+
+junit-jupiter-engine: Implementation of TestEngine API for JUnit Jupiter
+
+junit-vintage-engine: Thin layer on top of Junit4 to allow running vintage tests
+
+2. Create MathUtils.java
+
+public class MathUtils {
+   public int add(int a,int b){
+        return a+b;
+   }
+}
+
+3. Create MathUtilTest.java inside src/test/java
+
+@Test: Marks method as a test, informs JUnit engine what methods need to run 
+
+Assertions class - used to verify whether actual and expected are true
+
+public class MathUtilsTest {
+    @Test
+    public void testAdd(){
+      MathUtils m=new MathUtils();
+      assertEquals(2, m.add(1,1));
+    }
+}
+
+assertEquals(expected,actual)
+assertArrayEquals(expectedArray, actualArray)
+assertIterableEquals(expectedArray, actualArray)
+
+
+Test Driven Methodology - write test first and teh code 
+4. Create testComputeCircleArea()
+
+@Test 
+	void computeCircleArea() {
+		assertEquals(314.1592653589793, mathUtils.computeCircleArea(10), 
+				"Should return right circle area");
+	}
+
+Now when we run it fails, so from this test we create logic method in MathUtils class
+
+public double computeCircleArea(double radius){
+    return Math.PI * radius * radius;
+}
+
+Maven Surefire plugin
+     It is maven plugin used to run junit using maven commands 
+    Normally when we run junit by right clicking, ur eclipse ide which calls test runner of Junit and run those test. This will be used during development, but consider during CI/CD pipeline where we dont have eclipse installed, u need a command line way and for that we need maven surefire plugin 
+
+In pom.xml we add
+
+<build>
+   <plugins>
+      <plugin>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>2.22.1</version>
+      </plugin>
+   </plugins>
+</build>
+
+Right click - Run as - Maven test or Maven build - in goal give as test and run 
+
+Asserting Exception with assertThrows
+    We have a way to check if method throws exception and how we validate that it is throwing the right exception using assertThrows
+
+5. Create divide() in MathUtils class
+
+public int divide(int a, int b) {
+		return a/b;
+	}
+	
+6. Create test for divide method
+
+@Test
+	void testDivide() {
+		assertThrows(ArithmeticException.class, () -> mathUtils.divide(1, 0), 
+				"Divide should throw ArithmeticException when denominator is zero");
+	}
+
+For Executable we are giving lambda which is going to perform the thing that throws an exception 
+
+
+Lifecycle and test antipatterns to avoid
+     When you right click and say run as Junit tests, who will initializing this class, JUnit is managing the lifecycle of this class 
+
+Lifecycle Hooks
+1. @BeforeEach - Initialize before eac hmethod
+2. @AfterEach - Teardown after eac hmethod
+3. @BeforeAll - Initializa before all method
+4. @AfterAll - Teardown after all methods
+
+MathUtils mathUtils;
+
+@BeforeEach
+public void init() {
+    mathUtils=new MathUtils();
+}
+
+@AfterEach
+public void cleanUp(){
+    System.out.println("Cleaning up");
+}
+
+In order to define @BeforeAll and @AfterAll, the method should be static
+
+@BeforeAll
+public static void beforeAllInit(){
+   System.out.println("This needs ti run before all");
+}
+
+
+Changing default TestInstance behavior
+    Previously we created new instance for MathUtils class before each method, instead we want to create 1 instance for all ur test methods 
+
+@TestInstance - we can provide in JUnit to make test instance creation behave differently. It has 2 options
+
+1. @TestInstance(TestInstance.Lifecycle.PER_METHOD) - by default, the test instance created for each method
+
+2. @TestInstance(TestInstance.Lifecycle.PER_CLASS) - then only one instance for MathUtil class will be created, no matter how many methods u have. So in case of PER_CLASS, for BeforeAll method, no need to have static 
+
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+public class MathUtilTest {
+
+}
+So in this case, JUnit is going to create one instance of class, run BeforeAll and then run BeforeEach on that same instance, so essentially have same lifecycle hooks running in the same order but on that same instance rather than creating new instance every time 
+
+Using DisplayName and Disabled annotation
+   Used when u r dealing with large tests and how to manage ur tests
+
+1. @DisplayName 
+      When we run test, in Junit console it will display method name, instead if we want to display nice visual feedback about what ur method is doing 
+
+    @Test
+    @DisplayName("Testing add method")
+    public void testAdd(){
+      MathUtils m=new MathUtils();
+      assertEquals(2, m.add(1,1));
+    }
+Whenever we run this test, instead of displaying "testAdd" it will display "Testing add method"   
+
+2. @Disabled 
+     So when u write test driven development, we have written test and we know it fails until the actual functionality is implemented 
+     Here we create testDisabled() and we made the test deliberately fail using fail(), and we dont want to run this test using @Disabled 
+
+@Test
+@Disabled
+@DisplayName("TDD method, should not run")
+public void testDisabled(){
+   fail("This test should be disabled");
+}
+
+
+Conditional Execution
+    Used to execute test on certain condition
+
+1.@EnabledOnOs(OS.LINUX)
+  @EnabledOnOs({LINUX,MAC})
+      It is class level annotation and that class is going to run only on that OS 
+2.@EnabledOnJre(JRE.JAVA_11)
+  @EnabledForJreRange(min=JAVA_9,max=JAVA_11)
+  @DisabledOnJre(JAVA_9)
+  @DisabledForJreRange(min=JAVA_9,max=JAVA_11)
+3.@EnabledIf
+4.@EnabledIfSystemProperty
+5.@EnabledIfEnvironmentVariable 
+  
+
+Handling External factors using assumptions
+    Using assumeThat   
+
+@Test
+public void testDivide() {
+//boolean isServerUp=true
+assumeThat(5>1);
+//assumeFalse(5<1);
+assertThrows(ArithmeticException.class, () -> mathUtils.divide(1, 0), 
+	"Divide should throw ArithmeticException when denominator is zero");
+}
+
+@Test
+void assumptionTest(){
+  String s="Just a string";
+  assumingThat(s.equals("Just a string"),()->assertEquals(4,2+2));
+}
+
+When u run this test, we are assuming this is true, if this assumption is not correct, this test will not be executed. Similar to enable/disable, but this gives programmatic control  and we can write some code to identify the value 
+   For example, in order to run the test, the server should up, sometimes it is up or down and we dont want my test to get failed when server goes down. So certain failures do not run the test instead fail the test 
+
+
+Using assertAll
+   Consider we create multiply() which multiple 2 number
+
+public int multiply(int a,int b){
+   return a*b;
+}
+
+Now we are testing the method using
+
+@Test
+public void testMultiply() {
+    assertEquals(4, mathUtils.multiply(2,2));
+}
+
+Now consider we want to test multiply() for different integer values, instead of creating different testing methods, we can execute bunch of assertins in one statement using assertAll()
+
+@Test 
+public void testMultiply() {
+//assertEquals(4, mathUtil(2,2),"should return right product");
+  assertAll(
+	() -> assertEquals(0, mathUtils.multiply(1, 0)),
+        () -> assertEquals(1, mathUtils.multiply(1, 1)),
+        () -> assertEquals(6, mathUtils.multiply(2, 3))
+   );
+}
+
+
+Writing nested test classes
+    Consider we are testing add(), we have bunch of tests and make sure all those inputs result in right outputs. 
+   We can write bunch of assertEquals in same testAdd(), but this make test method bigger in size and we also lose the ability to provide different display names. So we want to somehow group those things together and say these are test single thing and each test are testing different scenarios using @Nested annotation
+   @Nested used to create bunch of tests for add() and group them together. So we create AddTest class inside MathUtilsTest class to group different testcase for add()
+
+@Nested
+@DisplayName("add method")
+class AddTest {
+
+      @Test
+      @DisplayName("When adding positive numbers")
+      void testAddingTwoPositives() {
+	 assertEquals(2, mathUtils.add(1, 1), 
+		"Add method should return the sum of two numbers");
+     }
+		
+     @Test
+     @DisplayName("When adding negative numbers")
+     void testAddingTwoNegatives() {
+	 assertEquals(-2, mathUtils.add(-1, -1), 
+		"Add method should return the sum of two numbers");
+    }
+		
+    @Test
+    void testAddingAPositiveAndANegative() {
+	assertEquals(0, mathUtils.add(-1, 1), 
+		"Add method should return the sum of two numbers");
+    }
+}
+
+If any of these test case failed, the add() also failed. 
+
+If u want to provide any display name for the entire class (ie) instead of MathUtils class we can provide display name for entire class
+
+@DisplayName("When running MathUtils")
+public class MathUtilTest {
+
+}
+
+
+Using @RepeatedtTest
+     Lets say we want to repeat the test 5 times for that we use @RepeatedTest annotation instead of @Test
+
+@RepeatedTest(5)
+void testcomputeCircleArea() {
+	assertEquals(314.1592653589793, mathUtils.computeCircleArea(10), 
+	"Should return right circle area");
+	}
+When u run test, u can see testcomputeCircleArea() will be executed 5 times. We can RepetitionInfo which contains info about that particular Repetition	
+
+@RepeatedTest(5)
+void testcomputeCircleArea(RepetitionInfo r) {
+   SOP(r.getTotalRepetitions()+" "+r.getCurrentRepetitions());
+	assertEquals(314.1592653589793, mathUtils.computeCircleArea(10), 
+	"Should return right circle area");
+	}
+
+Tagging tests with @Tag
+    Helps you with managing ur tests and selectively running tests. Tagging lets u tag ur tests as the name says with certain words like "important" and running only ur important test at any point of time
+   Tag must not be null or should not contain ,()&|! 
+
+class MathUtilsTest {
+	
+	private MathUtils mathUtils;
+	
+	
+	@BeforeEach
+	void initEach() {
+		mathUtils = new MathUtils();
+	}
+
+	@Nested
+        @Tag("Math test")
+	class AddTest {
+		@Test
+		void testAddingTwoPositives() {
+			assertEquals(2, mathUtils.add(1, 1), 
+					"Add method should return the sum of two numbers");
+		}
+		
+		@Test
+		void testAddingTwoNegatives() {
+			assertEquals(-2, mathUtils.add(-1, -1), 
+					"Add method should return the sum of two numbers");
+		}
+		
+		@Test
+		void testAddingAPositiveAndANegative() {
+			assertEquals(0, mathUtils.add(-1, 1), 
+					"Add method should return the sum of two numbers");
+		}
+	}
+	
+	@Test 
+        @Tag("Math test")
+	void testMultiply() {
+		assertAll(
+				() -> assertEquals(0, mathUtils.multiply(1, 0)),
+				() -> assertEquals(1, mathUtils.multiply(1, 1)),
+				() -> assertEquals(6, mathUtils.multiply(2, 3))
+				);
+	}
+	
+	@Test 
+        @Tag("Circle test")
+	void computeCircleArea() {
+		assertEquals(314.1592653589793, mathUtils.computeCircleArea(10), 
+				"Should return right circle area");
+	}
+	
+	@Test
+        @Tag("Math test")
+	void testDivide() {
+		assertThrows(ArithmeticException.class, () -> mathUtils.divide(1, 0), 
+				"Divide should throw ArithmeticException when denominator is zero");
+	}	
+	
+}
+
+Here we have 2 different tags called Math Test, Circle Test, when u run nothing different. So we have different ways to select tags using Eclipse or using maven surefire plugin 
+    Right click Runas - Run Configuration - Inculde and Exclude tags - Select Include Tags - we give Math Test
+    Now it will execute only Math Test tags alone
+
+JUnit Suite
+   - If u want to execute multiple test classes simulataneously using @SelectPackages and @SelectClasses
+
+@SuiteDisplayName("Junit Suite")
+@SelectPackage("comma separated pkg")
+public class Sample {
+
+}
+
+@SuiteDisplayName("Junit Suite")
+@SelectClasses("comma separated classes")
+public class Sample {
+
+}
+
+
+Timeouts
+   @Timeout annotation allows one to declare that a test should fail if its execution time exceeds a given duration
+@Test
+@Timeout(value=100,unit=TimeUnit.MILLISECONDS)
+void sample(){
+}
+
+Test Execution Order
+    - annotate ur test class using @TestMethodOrder
+
+@TestMethodOrder(OrderAnnotation.class)
+class SampleTest {
+    @Test
+    @Order(1)
+    void testAdd(){   }
+
+    @Test
+    @Order(2)
+    void testAdd1(){   }
+}
+
+
+Using TestInfo and TestReporter
+   @RepeatedTest uses RepetetionInfo as argument, so we declare an argument to a method and have the framework pass it. This is called dependency injection (ie) we declare an argument and provide the info as code dependent on that.
+   JUnit5 does dependency injection, so we can declare any of those types in ur class and Junit will automatically inject it 
+  JUnit maintains internally test info that contains information about test. Test Reporter lets you access the log. If u want to access those class we use dependency injection to get those instances
+
+1. we use TestInfo interface and TestReporter interface in @BeforeEach method
+  TestInfo contains methods like getDisplayName(), getTags(), getTestMethod() etc
+
+TestInfo testInfo;
+TestReporter testReporter;
+
+@BeforeEach
+public void init(TestInfo testInfo, TestReporter testReporter){
+   this.testInfo=testInfo;
+   this.testReporter=testReporter;
+   mathUtils=new MathUtils();
+}  
+
+@Test 
+@Tag("Math test")
+@DisplayName("Multiply method")
+void testMultiply() {
+   //SOP(testInfo.getDisplayName()+" with tags "+ testInfo.getTags());
+    testReporter.publishEntry(testInfo.getDisplayName()+" with tags "+ testInfo.getTags());
+		assertAll(
+				() -> assertEquals(0, mathUtils.multiply(1, 0)),
+				() -> assertEquals(1, mathUtils.multiply(1, 1)),
+				() -> assertEquals(6, mathUtils.multiply(2, 3))
+				);
+	} 
