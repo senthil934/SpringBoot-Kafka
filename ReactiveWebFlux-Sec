@@ -1,0 +1,1362 @@
+pom.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>2.5.4</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+	<groupId>com.pack</groupId>
+	<artifactId>ReactiveWebflux-Security</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>ReactiveWebflux-Security</name>
+	<description>Demo project for Spring Boot</description>
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<java.version>1.8</java.version>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-r2dbc</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>dev.miku</groupId>
+			<artifactId>r2dbc-mysql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webflux</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-thymeleaf</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>nz.net.ultraq.thymeleaf</groupId>
+			<artifactId>thymeleaf-layout-dialect</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-devtools</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.webjars</groupId>
+			<artifactId>webjars-locator-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.webjars</groupId>
+			<artifactId>bootstrap</artifactId>
+			<version>4.0.0-alpha.6-1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.webjars</groupId>
+			<artifactId>jquery</artifactId>
+			<version>3.1.1</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.projectreactor</groupId>
+			<artifactId>reactor-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<optional>true</optional>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-devtools</artifactId>
+			<scope>runtime</scope>
+			<optional>true</optional>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
+	<repositories>
+		<repository>
+			<id>spring-snapshots</id>
+			<name>Spring Snapshots</name>
+			<url>https://repo.spring.io/snapshot</url>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+		<repository>
+			<id>spring-milestones</id>
+			<name>Spring Milestones</name>
+			<url>https://repo.spring.io/milestone</url>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
+
+	<pluginRepositories>
+		<pluginRepository>
+			<id>spring-snapshots</id>
+			<name>Spring Snapshots</name>
+			<url>https://repo.spring.io/snapshot</url>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</pluginRepository>
+		<pluginRepository>
+			<id>spring-milestones</id>
+			<name>Spring Milestones</name>
+			<url>https://repo.spring.io/milestone</url>
+			<snapshots>
+				<enabled>false</enabled>
+			</snapshots>
+		</pluginRepository>
+	</pluginRepositories>
+	
+
+</project>
+
+
+ReactiveWebfluxSecurityApplicationTests.java
+package com.pack.ReactiveWebfluxSecurity;
+
+import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.csrf;
+
+import org.assertj.core.api.Assertions;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mockito;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.http.codec.ClientCodecConfigurer;
+import org.springframework.http.codec.json.Jackson2JsonDecoder;
+import org.springframework.http.codec.json.Jackson2JsonEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.reactive.function.client.ExchangeStrategies;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pack.ReactiveWebfluxSecurity.controller.StudentController;
+import com.pack.ReactiveWebfluxSecurity.model.Student;
+import com.pack.ReactiveWebfluxSecurity.repository.StudentRepository;
+import com.pack.ReactiveWebfluxSecurity.repository.UserRepository;
+import com.pack.ReactiveWebfluxSecurity.security.RepositoryReactiveUserDetailsService;
+import com.pack.ReactiveWebfluxSecurity.security.SecurityConfig;
+import com.pack.ReactiveWebfluxSecurity.security.SecurityControllerAdvice;
+
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+//@SpringBootTest
+@AutoConfigureWebTestClient(timeout = "5000000000")
+@RunWith(SpringRunner.class)
+@WebFluxTest(controllers = StudentController.class)
+@Import({SecurityConfig.class,SecurityControllerAdvice.class})
+@WithMockUser
+@AutoConfigureMockMvc(addFilters = false)
+public class ReactiveWebfluxSecurityApplicationTests {
+
+	@Autowired
+	WebTestClient webTestClient;
+
+	@MockBean
+	StudentRepository studentRepository;
+	
+	@MockBean
+	UserRepository userRepo;
+	
+	@MockBean
+	PasswordEncoder encoder;
+	
+	@MockBean
+	RepositoryReactiveUserDetailsService repoReactiveSecurity;
+	
+	
+	@Test
+	public void testCreateStudent() {
+	 Student student=Student.builder().id(1).name("ABC").email("abc@xyz.com").phoneNo(333333l).build();
+        Mono<Student> studentMono = Mono.just(student);
+        Mockito.when(studentRepository.save(student)).thenReturn(studentMono);
+
+        webTestClient.mutateWith(csrf()).post()
+                .uri("/students")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .body(Mono.just(student), Student.class)
+                .exchange()
+                .expectStatus().isOk();
+	}
+	
+	
+	
+	@Test
+    public void testAllStudents() {
+		 Student student1=Student.builder().id(1).name("ABC").email("abc@gmail.com").phoneNo(333333l).build();
+		 Student student2=Student.builder().id(2).name("XYZ").email("xyz@gmail.com").phoneNo(444444l).build();
+
+	     Mockito.when(studentRepository.findAll()).thenReturn(Flux.just(student1,student2));
+
+	        webTestClient.mutateWith(csrf()).get()
+	                .uri("/viewStudents")
+	                .exchange()
+	                .expectStatus().isOk()
+	                .expectBody().json("{}");
+	               
+    }
+
+	
+}
+
+
+application.properties
+spring.r2dbc.url=r2dbc:mysql://localhost:3306/reactive
+spring.r2dbc.username=root
+spring.r2dbc.password=root
+server.port=1000
+
+
+templates/login.html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<meta name="description" content="">
+	<meta name="author" content="">
+	<title>Please Log In</title>
+	<style>
+	a{
+  vertical-align: middle;
+}
+	</style>
+</head>
+<body>
+<div class="container"
+	 layout:fragment="content">
+	<h1>Please Log In</h1>
+	<form method="post"
+		  th:action="@{/login}">
+		<div th:if="${param.error}"
+			 class="alert alert-danger"
+			 role="alert">
+			Invalid username and password.
+		</div>
+		<div th:if="${param.logout}"
+			 class="alert alert-success"
+			 role="alert">
+			You have been logged out.
+		</div>
+		<div class="form-group">
+			<label for="username"
+				   class="sr-only">Username</label>
+			<input type="text"
+				   id="username"
+				   name="username"
+				   class="form-control"
+				   placeholder="Username"
+				    autofocus>
+		</div>
+		<div class="form-group">
+			<label for="password"
+				   class="sr-only">Password</label>
+			<input type="password"
+				   id="password"
+				   name="password"
+				   class="form-control"
+				   placeholder="Password"
+				  >
+		</div>
+		
+		<button class="btn btn-primary"
+				type="submit">Sign in</button>
+		<a class="btn btn-link" href="/signup">Create an account</a>           
+				
+	</form>
+</div>
+</body>
+</html>
+
+
+templates/logout.html
+<!doctype html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="../../../../favicon.ico">
+
+    <title layout:title-pattern="$LAYOUT_TITLE - $CONTENT_TITLE">Student Management System</title>
+
+    <!-- Bootstrap core CSS -->
+    <link th:href="@{/webjars/bootstrap/css/bootstrap.css}" href="../static/css/bootstrap.css" rel="stylesheet"></link>
+    <style type="text/css">
+        body {
+            padding-top: 5rem;
+        }
+        /* Sticky footer styles
+-------------------------------------------------- */
+        html {
+            position: relative;
+            min-height: 100%;
+        }
+
+
+        /* Custom page CSS
+        -------------------------------------------------- */
+        /* Not required for template or sticky footer method. */
+
+        .container {
+            width: auto;
+            max-width: 680px;
+            padding: 0 15px;
+        }
+    </style>
+</head>
+
+
+<body>
+
+<nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+    <a class="navbar-brand" href="#" th:href="@{/inbox}">Student Gateway</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarsExampleDefault" aria-controls="navbarsExampleDefault" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarsExampleDefault">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item active">
+              <!--   <a class="nav-link" href="#" th:href="@{/inbox}">Inbox <span class="sr-only">(current)</span></a> -->
+            </li>
+        </ul>
+        <div th:if="${currentUser != null}" class="navbar-text px-2" th:text="${currentUser.firstName}">rob@example.com</div>
+        <form th:if="${currentUser != null}" class="form-inline my-2 my-lg-0" th:action="@{/logout}" th:method="post">
+            <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Log out</button>
+        </form>
+        <form th:if="${currentUser == null}" class="form-inline my-2 my-lg-0" th:action="@{/users/signup}">
+        <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Sign Up</button>
+    </form>
+    </div>
+</nav>
+
+<main role="main">
+    <div class="container" layout:fragment="content">
+        <!-- Example row of columns -->
+        <div class="row">
+            <div class="col-md-4">
+                <h2>Heading</h2>
+                <p>Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui. </p>
+                <p><a class="btn btn-secondary" href="#" role="button">View details &raquo;</a></p>
+            </div>
+            <div class="col-md-4">
+                <h2>Heading</h2>
+                <p>Donec id elit non mi porta gravida at eget metus. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus. Etiam porta sem malesuada magna mollis euismod. Donec sed odio dui. </p>
+                <p><a class="btn btn-secondary" href="#" role="button">View details &raquo;</a></p>
+            </div>
+            <div class="col-md-4">
+                <h2>Heading</h2>
+                <p>Donec sed odio dui. Cras justo odio, dapibus ac facilisis in, egestas eget quam. Vestibulum id ligula porta felis euismod semper. Fusce dapibus, tellus ac cursus commodo, tortor mauris condimentum nibh, ut fermentum massa justo sit amet risus.</p>
+                <p><a class="btn btn-secondary" href="#" role="button">View details &raquo;</a></p>
+            </div>
+        </div>
+
+        <hr>
+
+    </div> <!-- /container -->
+
+</main>
+
+
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" th:src="@{/webjars/jquery/jquery.min.js}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"  th:src="@{/webjars/popper.js/umd/popper.min.js}"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/js/bootstrap.min.js" th:src="@{/webjars/bootstrap/js/bootstrap.js}"></script>
+</body>
+</html>
+
+/templates/signup/form.html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
+<head>
+    <meta charset="utf-8"/>
+    <title>Create User</title>
+    <link rel="stylesheet" href="/webjars/bootstrap/css/bootstrap.css" />
+</head>
+<body>
+    <div layout:fragment="content">
+        <h1>Sign Up</h1>
+        <form th:action="@{/signup}" th:method="post" th:object="${user}">
+            <div class="form-group">
+                <label for="firstName">First Name</label>
+                <input type="text" class="form-control" id="firstName" placeholder="Enter first name" th:field="*{firstName}" autofocus>
+                <span
+					th:if="${#fields.hasErrors('firstName')}" th:errors="*{firstName}"
+					class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label for="lastName">Last Name</label>
+                <input type="text" class="form-control" id="lastName" placeholder="Enter last name" th:field="*{lastName}">
+                <span
+					th:if="${#fields.hasErrors('lastName')}" th:errors="*{lastName}"
+					class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label for="email">Email address</label>
+                <input type="email" class="form-control" id="email" aria-describedby="emailHelp" placeholder="Enter email" th:field="*{email}" >
+                <span
+					th:if="${#fields.hasErrors('email')}" th:errors="*{email}"
+					class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" class="form-control" id="password" th:field="*{password}">
+                <span
+					th:if="${#fields.hasErrors('password')}" th:errors="*{password}"
+					class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label for="role">Role</label>
+                <input type="radio" class="form-control" id="role" th:field="*{role}" value="USER"> User
+                <input type="radio" class="form-control" id="role" th:field="*{role}" value="ADMIN"> Admin
+                <span
+					th:if="${#fields.hasErrors('role')}" th:errors="*{role}"
+					class="text-danger"></span>
+            </div>
+            <button type="submit" class="btn btn-primary">Create User</button>
+            <button type="submit" class="btn btn-primary" formaction="/">Back</button>
+            
+        </form>
+    </div>
+</body>
+</html>
+
+templates/student/add-student.html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="x-ua-compatible" content="ie=edge">
+<title>Add User</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet"
+	href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+	integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
+	crossorigin="anonymous">
+<link rel="stylesheet"
+	href="https://use.fontawesome.com/releases/v5.4.1/css/all.css"
+	integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz"
+	crossorigin="anonymous">
+<!-- <link rel="stylesheet" href="../css/shards.min.css"> -->
+</head>
+<body>
+	<div class="container" layout:fragment="content">
+	<h3> Add Student</h3>
+		
+				<div class="col-md-10">
+					<form action="#" th:action="@{/students}"
+						th:object="${student}" method="post" novalidate="novalidate">
+						<div class="row">
+							<div class="form-group col-md-8">
+								<label for="name" class="col-form-label">Name</label> <input
+									type="text" th:field="*{name}" class="form-control" id="name"
+									placeholder="Name"> 
+					        <span
+									th:if="${#fields.hasErrors('name')}" th:errors="*{name}"
+									class="text-danger"></span>
+							</div>
+							<div class="form-group col-md-8">
+								<label for="email" class="col-form-label">Email</label> <input
+									type="email" th:field="*{email}" class="form-control" id="email"
+									placeholder="Email"> 
+									<span
+									th:if="${#fields.hasErrors('email')}" th:errors="*{email}"
+									class="text-danger"></span>
+							</div>
+
+							<div class="form-group col-md-8">
+								<label for="phoneNo" class="col-form-label">Phone No</label> <input
+									type="text" th:field="*{phoneNo}" class="form-control"
+									id="phoneNo" placeholder="PhoneNo"> 
+									<span
+									th:if="${#fields.hasErrors('phoneNo')}" th:errors="*{phoneNo}"
+									class="text-danger"></span>
+							</div>
+
+							<div class="col-md-6">
+								<input type="submit" class="btn btn-primary" value="Add Student">
+							</div>
+
+							<div class="form-group col-md-8"></div>
+
+						</div>
+					</form>
+				</div>
+			</div>
+
+</body>
+</html>
+
+
+templates/student/update-student.html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="x-ua-compatible" content="ie=edge">
+<title>Update User</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet"
+	href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+	integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
+	crossorigin="anonymous">
+<link rel="stylesheet"
+	href="https://use.fontawesome.com/releases/v5.4.1/css/all.css"
+	integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz"
+	crossorigin="anonymous">
+</head>
+<body>
+	<div class="container" layout:fragment="content">
+	<h3> Update Student</h3>
+		
+				<div class="col-md-8">
+					<form action="#"
+						th:action="@{/update/{id}(id=${student.id})}"
+						th:object="${student}" method="post">
+						<div class="row">
+							<div class="form-group col-md-8">
+								<label for="name" class="col-form-label">Name</label> <input
+									type="text" th:field="*{name}" class="form-control" id="name"
+									placeholder="Name"> <span
+									th:if="${#fields.hasErrors('name')}" th:errors="*{name}"
+									class="text-danger"></span>
+							</div>
+							<div class="form-group col-md-8">
+								<label for="email" class="col-form-label">Email</label> <input
+									type="text" th:field="*{email}" class="form-control" id="email"
+									placeholder="Email"> <span
+									th:if="${#fields.hasErrors('email')}" th:errors="*{email}"
+									class="text-danger"></span>
+							</div>
+							<div class="form-group col-md-8">
+								<label for="phoneNo" class="col-form-label">Phone No</label> <input
+									type="text" th:field="*{phoneNo}" class="form-control"
+									id="phoneNo" placeholder="phoneNo"> <span
+									th:if="${#fields.hasErrors('phoneNo')}" th:errors="phoneNo"
+									class="text-danger"></span>
+							</div>
+
+							<div class="form-group col-md-8">
+								<input type="submit" class="btn btn-primary"
+									value="Update Student">
+							</div>
+						</div>
+					</form>
+				</div>
+			</div>
+		
+</body>
+</html>
+
+
+templates/student/viewStudent.html
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="x-ua-compatible" content="ie=edge">
+<title>Users</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet"
+	href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css"
+	integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
+	crossorigin="anonymous">
+<link rel="stylesheet"
+	href="https://use.fontawesome.com/releases/v5.4.1/css/all.css"
+	integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz"
+	crossorigin="anonymous">
+<!-- <link rel="stylesheet" href="../css/shards.min.css"> -->
+</head>
+<body>
+	<div class="container" layout:fragment="content">
+		
+				<div th:switch="${students}" class="container my-5">
+					<p class="my-5">
+						<a href="/registerStudent" class="btn btn-primary"><i
+							class="fas fa-user-plus ml-2"> Add Student</i></a>
+					</p>
+					<div class="col-md-10">
+						<h2 th:case="null">No Students yet!</h2>
+						<div th:case="*">
+							<table class="table table-striped table-responsive-md">
+								<thead>
+									<tr>
+									    <th>Student ID</th>
+										<th>Name</th>
+										<th>Email</th>
+										<th>Phone No</th>
+										<th>Edit</th>
+										<th>Delete</th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr th:each="student : ${students}">
+									    <td th:text="${student.id}"></td>
+										<td th:text="${student.name}"></td>
+										<td th:text="${student.email}"></td>
+										<td th:text="${student.phoneNo}"></td>
+										<td><a th:href="@{/edit/{id}(id=${student.id})}"
+											class="btn btn-primary"><i class="fas fa-user-edit ml-2"></i></a></td>
+										<td><a
+											th:href="@{/delete/{id}(id=${student.id})}"
+											class="btn btn-primary"><i class="fas fa-user-times ml-2"></i></a></td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+
+					</div>
+				</div>
+			</div>
+	
+</body>
+</html>
+
+
+SignupController.java
+package com.pack.ReactiveWebfluxSecurity.controller;
+
+import java.security.SecureRandom;
+
+import javax.validation.Valid;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Controller;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+
+import com.pack.ReactiveWebfluxSecurity.model.User;
+import com.pack.ReactiveWebfluxSecurity.repository.UserRepository;
+
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
+
+@Controller
+@RequestMapping(path = "/signup")
+public class SignupController {
+
+	@Autowired
+	//@Qualifier("userRepo")
+	private UserRepository userRepo;
+
+	@Autowired
+	private PasswordEncoder encoder;
+
+	
+	/*public SignupController(UserRepository users, PasswordEncoder encoder) {
+		this.users = users;
+		this.encoder = encoder;
+	}
+	
+	public SignupController() {
+		super();
+		// TODO Auto-generated constructor stub
+	}*/
+
+
+	@GetMapping
+	public Mono<String> signupForm(@ModelAttribute User user) {
+		return Mono.just("signup/form");
+	}
+
+	@PostMapping
+	public Mono<String> signup(@Valid User user, BindingResult result) {
+		if(result.hasErrors()) {
+			return signupForm(user);
+		}
+		return Mono.just(user)
+				//.doOnNext(u -> u.setId(this.random.nextLong()))
+				.subscribeOn(Schedulers.parallel())
+				.doOnNext(u -> u.setPassword(this.encoder.encode(u.getPassword())))
+				.flatMap(this.userRepo::save)
+				.then(Mono.just("redirect:/"));
+	}
+}
+
+//subscribeOn(Schedulers.parallel()) - used to say which thread to run
+//on, it is important in this case because password encoding happens
+//to be blocking operation, it takes half second to encode ur password and
+//validate passwords so we blocking the main thread. It takes lot of
+//CPU so we have to delegate to separate thread pool otherwise we are 
+//blocking the dispatcher thread 
+
+
+StudentController.java
+package com.pack.ReactiveWebfluxSecurity.controller;
+
+import java.util.Random;
+
+import javax.validation.Valid;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+
+import com.pack.ReactiveWebfluxSecurity.model.Student;
+import com.pack.ReactiveWebfluxSecurity.repository.StudentRepository;
+
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+@Controller
+public class StudentController {
+
+	@Autowired
+	//@Qualifier("studentRepository")
+    StudentRepository studentRepository;
+	
+	//@Autowired
+	//UserRepository userRepository;
+
+	//@Autowired
+	//PasswordEncoder encoder;
+	
+	@GetMapping("/")
+	Mono<String> index() {
+		return Mono.just("redirect:/viewStudents");
+	}
+	
+	@GetMapping("/login")
+	public Mono<String> login() {
+		return Mono.just("login");
+	}
+	
+	/*@GetMapping("/signup")
+	public Mono<String> signupForm(@ModelAttribute User user) {
+		return Mono.just("signup/form");
+	}
+
+	@PostMapping("/signup")
+	public Mono<String> signup(@Valid User user, BindingResult result) {
+		if(result.hasErrors()) {
+			return signupForm(user);
+		}
+		return Mono.just(user)
+				//.doOnNext(u -> u.setId(this.random.nextLong()))
+				.subscribeOn(Schedulers.parallel())
+				.doOnNext(u -> u.setPassword(this.encoder.encode(u.getPassword())))
+				.flatMap(this.userRepository::save)
+				.then(Mono.just("redirect:/"));
+	}*/
+	
+	@GetMapping("/viewStudents")
+	public Mono<String> showUpdateForm(Model model) {
+		Flux<Student> stuList=studentRepository.findAll();
+		model.addAttribute("students", stuList);
+		return Mono.just("student/viewStudent");
+	}
+	
+	@GetMapping("/registerStudent")
+	Mono<String> signupForm(Student student) {
+		return Mono.just("student/add-student");
+	}
+	
+	
+	//This is because we are trying to save a new product. The id field should be null. If it is 
+	//present, Spring expects the given id to be present in the DB. So we can not insert a new 
+	//record with the given id. But We can fix this by implementing the Persistable interface. 
+	//If the isNew method returns new, R2DBC inserts the record with the given id.
+	//https://www.vinsguru.com/spring-data-r2dbc/
+	//@Transactional
+	@PostMapping("/students")
+	Mono<String> signup(@Valid Student student, BindingResult result) {
+		if(result.hasErrors()) {
+			return signupForm(student);
+		}
+		Random r=new Random();
+		int id=r.nextInt(9999)+1000;
+		student.setId(id);
+        return this.studentRepository.findById(student.getId())
+                /*.flatMap(s -> {
+                    s.setName(student.getName());
+                    s.setEmail(student.getEmail());
+                    s.setPhoneNo(student.getPhoneNo());
+                    return this.studentRepository.save(s);
+                })*/
+        		.switchIfEmpty(this.studentRepository.save(student.setAsNew()))
+                .then(Mono.just("redirect:/viewStudents")); // save if the product with id is not present
+    }
+	
+	
+	
+	@GetMapping("/edit/{id}")
+	public Mono<String> showUpdateForm(@PathVariable("id") Integer id, Model model) {
+		Mono<Student> student = studentRepository.findById(id)
+				 .onErrorMap(throwable -> {
+	                    System.out.println("throwable = " + throwable);
+	                    return new StudentNotFoundException("Student not found");
+	           });
+		model.addAttribute("student", student);
+		return Mono.just("student/update-student");
+	}
+
+	@PostMapping("update/{id}")
+	public Mono<String> updateStudent(@PathVariable("id") Integer id, @Valid Student student, BindingResult result,
+			Model model) {
+		if (result.hasErrors()) {
+			student.setId(id);
+			return Mono.just("update-student");
+		} 
+		return Mono.just(student)
+				.flatMap(this.studentRepository::save)
+				.then(Mono.just("redirect:/viewStudents"));
+	}
+	
+	@GetMapping("/delete/{id}")
+	Mono<String> deleteById(@PathVariable Integer id) {
+		System.out.println("Inside delete");
+		return this.studentRepository
+			.deleteById(id)
+			.thenReturn("redirect:/viewStudents");
+	}
+}
+
+
+StudentNotFoundException.java
+package com.pack.ReactiveWebfluxSecurity.controller;
+
+public class StudentNotFoundException extends Exception {
+	String msg="";
+
+	public StudentNotFoundException(String msg) {
+		super();
+		this.msg = msg;
+	}
+
+}
+
+
+Student.java
+package com.pack.ReactiveWebfluxSecurity.model;
+
+import javax.validation.constraints.Email;
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
+import org.springframework.data.domain.Persistable;
+import org.springframework.data.relational.core.mapping.Column;
+import org.springframework.data.relational.core.mapping.Table;
+
+import lombok.Builder;
+import lombok.Data;
+
+@Table
+@Data
+@Builder(toBuilder = true)
+public class Student implements Persistable<Integer> {
+	@Id
+	private Integer id;
+
+	@Column
+	@NotEmpty(message = "Name cannot be empty")
+	private String name;
+
+	@Column
+	@NotEmpty(message = "Email cannot be empty")
+	@Email(message = "Enter valid email")
+	private String email;
+
+	@Column
+	@NotNull(message = "Phone no cannot be empty")
+	private Long phoneNo;
+
+	@Transient
+	private boolean newStudent;
+
+	@Override
+	@Transient
+	public boolean isNew() {
+		return this.newStudent || id == null;
+	}
+
+	public Student setAsNew() {
+		this.newStudent = true;
+		return this;
+	}
+
+	public Student(Integer id, @NotEmpty(message = "Name cannot be empty") String name,
+			@NotEmpty(message = "Email cannot be empty") @Email(message = "Enter valid email") String email,
+			@NotNull(message = "Phone no cannot be empty") Long phoneNo) {
+		super();
+		this.id = id;
+		this.name = name;
+		this.email = email;
+		this.phoneNo = phoneNo;
+	}
+
+	public Student() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public Student(Integer id, @NotEmpty(message = "Name cannot be empty") String name,
+			@NotEmpty(message = "Email cannot be empty") @Email(message = "Enter valid email") String email,
+			@NotNull(message = "Phone no cannot be empty") Long phoneNo, boolean newStudent) {
+		super();
+		this.id = id;
+		this.name = name;
+		this.email = email;
+		this.phoneNo = phoneNo;
+		this.newStudent = newStudent;
+	}
+	
+	
+}
+
+
+User.java
+package com.pack.ReactiveWebfluxSecurity.model;
+
+import javax.validation.constraints.NotEmpty;
+import javax.validation.constraints.Size;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
+
+import lombok.Data;
+
+@Table
+@Data
+public class User {
+	@Id
+	private Long id;
+
+	@NotEmpty(message = "Email is required")
+	private String email;
+
+	@NotEmpty(message = "Password is required")
+	@Size(min=6,max=12,message="Password should be between 6 to 12 characters")
+	private String password;
+
+	@NotEmpty(message = "Firstname is required")
+	private String firstName;
+
+	@NotEmpty(message = "Lastname is required")
+	private String lastName;
+
+	@NotEmpty(message = "Role is required")
+	private String role;
+	
+	public User() {}
+
+	public User(User user) {
+		this(user.getId(), user.getEmail(), user.getPassword(), user.getFirstName(), user.getLastName(),user.getRole());
+	}
+
+	public User(Long id, String email, String password, String firstName,
+			String lastName, String role) {
+		this.id = id;
+		this.email = email;
+		this.password = password;
+		this.firstName = firstName;
+		this.lastName = lastName;
+		this.role=role;
+	}
+
+	public Long getId() {
+		return this.id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public String getEmail() {
+		return this.email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public String getPassword() {
+		return this.password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
+	}
+
+	public String getFirstName() {
+		return this.firstName;
+	}
+
+	public void setFirstName(String firstName) {
+		this.firstName = firstName;
+	}
+
+	public String getLastName() {
+		return this.lastName;
+	}
+
+	public void setLastName(String lastName) {
+		this.lastName = lastName;
+	}
+	public String getRole() {
+		return this.role;
+	}
+
+	public void setRole(String role) {
+		this.role = role;
+	}
+	
+}
+
+
+StudentRepository.java
+package com.pack.ReactiveWebfluxSecurity.repository;
+
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import org.springframework.stereotype.Repository;
+
+import com.pack.ReactiveWebfluxSecurity.model.Student;
+
+@Repository(value="studentRepository")
+public interface StudentRepository extends ReactiveCrudRepository<Student, Integer>{
+
+}
+
+
+UserRepository.java
+package com.pack.ReactiveWebfluxSecurity.repository;
+
+import org.springframework.data.repository.reactive.ReactiveCrudRepository;
+import org.springframework.stereotype.Repository;
+
+import com.pack.ReactiveWebfluxSecurity.model.User;
+
+import reactor.core.publisher.Mono;
+
+@Repository(value="userRepo")
+public interface UserRepository extends ReactiveCrudRepository<User, Long> {
+	Mono<User> findByEmail(String email);
+}
+
+
+CurrentUser.java
+package com.pack.ReactiveWebfluxSecurity.security;
+
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+/**
+ * @author Rob Winch
+ */
+@Target({ ElementType.PARAMETER, ElementType.TYPE })
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@AuthenticationPrincipal
+public @interface CurrentUser {
+}
+
+
+RepositoryReactiveUserDetailsService.java
+package com.pack.ReactiveWebfluxSecurity.security;
+
+import java.util.Collection;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Component;
+
+import com.pack.ReactiveWebfluxSecurity.model.User;
+import com.pack.ReactiveWebfluxSecurity.repository.UserRepository;
+
+import reactor.core.publisher.Mono;
+
+
+@Component
+public class RepositoryReactiveUserDetailsService implements ReactiveUserDetailsService {
+	
+	private UserRepository users;
+
+	public RepositoryReactiveUserDetailsService(UserRepository users) {
+		this.users = users;
+	}
+
+	@Override
+	public Mono<UserDetails> findByUsername(String username) {
+		return this.users.findByEmail(username)
+				.map(CustomUserDetails::new);
+	}
+
+	static class CustomUserDetails extends User implements UserDetails {
+		public CustomUserDetails(User user) {
+			super(user);
+		}
+
+		@Override
+		public Collection<? extends GrantedAuthority> getAuthorities() {
+			return AuthorityUtils.createAuthorityList("ROLE_USER","ROLE_ADMIN");
+		}
+
+		@Override
+		public String getUsername() {
+			return getEmail();
+		}
+
+		@Override
+		public boolean isAccountNonExpired() {
+			return true;
+		}
+
+		@Override
+		public boolean isAccountNonLocked() {
+			return true;
+		}
+
+		@Override
+		public boolean isCredentialsNonExpired() {
+			return true;
+		}
+
+		@Override
+		public boolean isEnabled() {
+			return true;
+		}
+	}
+}
+
+
+SecurityConfig.java
+package com.pack.ReactiveWebfluxSecurity.security;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
+import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.authorization.AuthorizationContext;
+import reactor.core.publisher.Mono;
+
+
+@Configuration
+//@EnableReactiveMethodSecurity
+@EnableWebFluxSecurity
+public class SecurityConfig {
+	@Bean
+	SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
+		http
+			.authorizeExchange()
+				//.pathMatchers("/users").access(this::isRob)
+				.pathMatchers("/login", "/signup", "/webjars/**").permitAll()
+				.pathMatchers("/viewStudents","/registerStudent","/students").hasRole("USER")
+				.pathMatchers("/edit","/delete","/update","/viewStudents").hasRole("ADMIN")
+				.anyExchange().authenticated()
+				.and()
+			.httpBasic().and()
+			.formLogin()
+				.loginPage("/login");
+		return http.build();
+	}
+
+	@Bean
+	PasswordEncoder passwordEncoder() {
+		return PasswordEncoderFactories.createDelegatingPasswordEncoder();
+	}
+}
+
+
+SecurityControllerAdvice.java
+package com.pack.ReactiveWebfluxSecurity.security;
+
+import org.springframework.security.web.reactive.result.view.CsrfRequestDataValueProcessor;
+import org.springframework.security.web.server.csrf.CsrfToken;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.server.ServerWebExchange;
+
+import com.pack.ReactiveWebfluxSecurity.model.User;
+
+import reactor.core.publisher.Mono;
+
+@ControllerAdvice
+public class SecurityControllerAdvice {
+	@ModelAttribute
+	Mono<CsrfToken> csrfToken(ServerWebExchange exchange) {
+		Mono<CsrfToken> csrfToken = exchange.getAttribute(CsrfToken.class.getName());
+		return csrfToken.doOnSuccess(token -> exchange.getAttributes()
+				.put(CsrfRequestDataValueProcessor.DEFAULT_CSRF_ATTR_NAME, token));
+	}
+
+	@ModelAttribute("currentUser")
+	User currentUser(@CurrentUser User currentUser) {
+		return currentUser;
+	}
+}
+
+
+
+ReactiveOAuth2 project
+
+pom.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>2.5.4</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+	<groupId>com.pack</groupId>
+	<artifactId>ReactiveOAuth2</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<name>ReactiveOAuth2</name>
+	<description>Demo project for Spring Boot</description>
+	<properties>
+		<java.version>1.8</java.version>
+	</properties>
+	<dependencies>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webflux</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.projectreactor</groupId>
+			<artifactId>reactor-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+		    <groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-config</artifactId>
+		</dependency>
+		<dependency>
+		    <groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-oauth2-client</artifactId>
+		</dependency>
+		<dependency>
+		    <groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-oauth2-jose</artifactId>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
+
+
+application.properties
+server.port=2222
+spring.security.oauth2.client.registration.github.client-id=a2f2eadafb3ef1fd1b34
+spring.security.oauth2.client.registration.github.client-secret=9095bba5844fb5b08a724531fce3469404749b1e
+
+
+ReactiveOAuth2Application.java
+package com.pack.ReactiveOAuth2;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import reactor.core.publisher.Mono;
+
+@SpringBootApplication
+@RestController
+public class ReactiveOAuth2Application {
+
+	public static void main(String[] args) {
+		SpringApplication.run(ReactiveOAuth2Application.class, args);
+	}
+	
+	@GetMapping("/")
+	public Mono<String> getMessage(){
+		return Mono.just("Hello world");
+	}
+
+}
+
