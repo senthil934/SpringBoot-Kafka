@@ -1022,8 +1022,8 @@ Here when we pass Mango to map() then we get RuntimeException
 
 The map operator applies a one-to-one transformation to stream elements and a method that converts one value to another, while flatMap does one-to-many. This distinction is clear when looking at the method signature:
 
-<V> Flux<V> map(Function<? super T, ? extends V> mapper) – the mapper converts a single value of type T to a single value of type V
-Flux<R> flatMap(Function<? super T, ? extends Publisher<? extends R>> mapper) – the mapper converts a single value of type T to a Publisher of elements of type R
+<V> Flux<V> map(Function<? super T, ? extends V> mapper) â€“ the mapper converts a single value of type T to a single value of type V
+Flux<R> flatMap(Function<? super T, ? extends Publisher<? extends R>> mapper) â€“ the mapper converts a single value of type T to a Publisher of elements of type R
 
 map: Transform the items emitted by this Flux by applying a synchronous function to each item
    Each time when flux publishes 
@@ -1263,7 +1263,7 @@ Reactive Stream with Security
 2. Create table user
 > create table user(id int primary key auto_increment, email varchar(50),password varchar(200),first_name varchar(30),last_name varchar(30),role varchar(10));
 
->create table student(id int primary key auto_increment, name varchar(20),email varchar(50),phone_no bigint)
+>create table student(id int primary key, name varchar(20),email varchar(50),phone_no bigint)
 
 3. Add spring security dependency
 <dependency>
@@ -1414,3 +1414,26 @@ What is type of ur field? String
 Do u want to add validation rules to ur field? No
 
 Like this we can generate as many fields 
+
+
+
+Webflux OAuth2.0 login using Github
+   Spring Security provides OAuth2 and webflux integration for reactive appl using existing OAuth providers like Github, Google or facebook
+
+1. Start the appl with http://localhost:2222/ will sign in with user and generated password
+
+2. Now we created client secret with Github to login 
+3. Goto github - settings - Developer Settings - OAuth Apps - Register new appl
+   Application name: TestOAuth2 
+   Homepage url: http://localhost:2222
+   Application description: Testing OAuth2
+   Authorization Callback Url: http://localhost:2222/login/oauth2/code/github
+  Click Register Application
+Now we get clientID and client Secret
+
+4. We use this clientID and client secret in application.properties
+spring.security.oauth2.client.registration.github.client-id=
+spring.security.oauth2.client.registration.github.client-secret=
+
+5. Restart the appl
+6. Run as http://localhost:2222, it will redirect to github 
