@@ -18,7 +18,7 @@ So in todays REST API development we have 3 ways to develop the REST aplication
 How traditional Restful apis handle concurrent request ?
    The model we take is 
 Thread Per Request Model:
-    For each HTTP request the tomcat is going to take a thread from the thread pool and assign the thread to that HTTP request. Each allocated thread is responsible to handle the life cycle of thaat HTTP request 
+    For each HTTP request the tomcat is going to take a thread from the thread pool and assign the thread to that HTTP request. Each allocated thread is responsible to handle the life cycle of that HTTP request 
    The threads can be extended only to a value of n which is nothing but the thread pool size because that  is the one which is going to decide how many number of concurrent users can be handled at any given time 
 
 How can we increase or decrease the thread pool size?
@@ -107,7 +107,7 @@ What is Reactive programming?
     5. Support back pressure on data streams 
 
 When to use reactive programming?
-     When there is a need to build appl that supports very hight load of data 
+     When there is a need to build appl that supports very high load of data 
 
 How Reactive programming works?
     We have 2 friends texting each other friend1 and friend2. For the sake of this example, we assume friend1 is watching tv and friend2 is busy outside. Friend1 decide to message friend2, in reality after the message is sent friend1 is not going to wait and block until the response is received from his friend2. After friend2 is complete his job outside, he have chance to reply back to friend1 and conversation proceeds, once they are done with the conversation they are going to do their work. This type of communication is called asynchronous and non blocking, the idea is not to wait and block on anything
@@ -280,7 +280,7 @@ Here we use just() method to create mono with one element and we cant provide mu
 
 
 Reactive API in Spring Boot
-1. Create ReactiveSpringBoot project with reactive web, reactive mongodb, lombok and embedded mongodb(for writing integration test case). Apart from that ur pom.xml will have project reactor which is default reactive library that comes with spring for flux.
+1. Create ReactiveSpringBoot project with reactive web, lombok . Apart from that ur pom.xml will have project reactor which is default reactive library that comes with spring for flux.
    - The default server is Netty 
    - No reactive mysql connector is available
    - If u expand the dependency of project reactor, u can see 3 dependency called project reactor core which has all the flux and mono reactive types, other is reactor test used for testing flux and mono because u cant write it as unit test cases, next is reactor netty which is default server for reactive 
@@ -567,6 +567,9 @@ JUnit for Functional Endpoint using WebTestClient
 
 
 Reactive Spring boot with MySQL database
+https://www.youtube.com/watch?v=P9L3Lq2Ecvw
+
+https://www.youtube.com/watch?v=kGK9Hf8cnBw&list=PLoeSjUxfpzh9J6ACpC6M9THEMgEgHwh7I&index=2  - for testing db code
 
 a) Using Spring Data R2DBC, tables cannot be created at runtime. We can either create the tables externally or we can create a schema.sql file inside the resources folder and execute them programmatically. For our application, we will create a schema.sql file inside the resources folder with all the DDL statements.
 DROP TABLE IF EXISTS users ;
@@ -641,7 +644,7 @@ DELETE - http://localhost:1111/customer/1
 
 
 
-
+https://www.youtube.com/watch?v=eyN9H_EA7tI
 Spring Webclient
     Spring webclient is a new addition to the spring ecosystem through whuch u can build modern Restful API clients 
 
@@ -667,6 +670,7 @@ Why WebClient?
      - Since by default WebClient is async but in order to make WebClient instance behave like synchronous client we need to use block()
 
 4. Next we need to add properties to Customer model
+
 
 Example 2:
 1. mysql> create table book_request(booking_Id int primary key auto_increment,user_name varchar(20),show_name varchar(20),booking_time date,user_count int,price double);
@@ -705,7 +709,7 @@ Webclient has onStatus() method, where we can write Predicate, using which we ha
 Retry using webclient
      We have clientApp and ServerApp, clientApp is making call to server, due to some technical network issues it receive some error response. Instead of considering that request failed, if u retry there is a possibility that particular request can recover from failure 
 
-
+https://www.youtube.com/watch?v=iuH_B1FutRo
 Reactive Microservice with API Gateway
 1. Create Reactive-DiscoveryServer which act like eureka server
 2. mysql> create table car(id int primary key auto_increment,name varchar(20),type varchar(20),release_Date date);
