@@ -53,8 +53,8 @@ public ResponseEntity<Item> getItemFromExternalServices(@PathVariable Integer id
    In Java we have 2 options, Callback and Future.
 
 Callbacks
+    - Asynchronous methods that accept a callback as a parameter and invokes it when the blocking call completes
     - By nature it is complex and not a great option
-    - Callbacks does not return any value but it does take the instance of callback as an parameter 
     - Callback code has a nature of handling exceptions at each level and the code itself is hard to read and maintain 
 
 Future
@@ -206,7 +206,13 @@ Publisher/Subscriber Event flow
 
 }
 
-Implementation of Project Reactor - 3 types
+
+Project Reactor 
+    - It is implementation of Reactive Streams Specification
+    - It is also called Reactive Library, any module that implements Reactive stream specification is known as reactive library
+    - Spring Webflux uses project reactor by default 
+
+3 types
 1.Reactive Libraries
      - It is implementation of Reactive streams specification like Publisher, Subscriber, Subscription, Processor
      - We have different Reactive Libraries like
@@ -348,7 +354,7 @@ We are going to test the elements inside the flux which is spring, spring boot, 
           .verifyComplete();
 If we change the order, then the test case it would be failed. So this test case make sure that we are getting the elements from the flux in the order that we have it here 
   The difference between 2 methods is that subscribe() is one which is going to start the whole flow of the flux to pass the elements from flux to the subscriber,  but here StepVerifier take care of subscribing to the flux and then asserting the values on the flux
-   When we comment verifyComplete() and run then we wont get any output because verifyComplete is a call which is actually equivalent to subscribe which iss going to start the flow of elements from the flux.
+   When we comment verifyComplete() and run then we wont get any output because verifyComplete is a call which is actually equivalent to subscribe which is going to start the flow of elements from the flux.
 
    Instead of defining expectNext() multiple times, we can define in a single line also 
   .expectNext("Spring","SpringBoot","Reactive spring boot")
@@ -517,6 +523,7 @@ public Mono<Integer> returnMono() {
 
 
 Spring WebFlux-Functional Web
+     Functional endpoints are lambda based lightweight and functional programming model. This is small library or a set of utilities used to route and handle request 
    1. Use Functions to route the request and response
       Idea behind the functions to handle the incoming requests and response
    2. Functional web contains 2 parts called RouterFunction and HandlerFunction 
@@ -570,6 +577,12 @@ Reactive Spring boot with MySQL database
 https://www.youtube.com/watch?v=P9L3Lq2Ecvw
 
 https://www.youtube.com/watch?v=kGK9Hf8cnBw&list=PLoeSjUxfpzh9J6ACpC6M9THEMgEgHwh7I&index=2  - for testing db code
+
+
+   In normal JDBC approach which is taken within the api is blocking within our database operations and we dont have truly reactive application unless we bring non-blocking behavior at the database level
+
+R2DBC(Reactive Relational Database Connectivity)
+    
 
 a) Using Spring Data R2DBC, tables cannot be created at runtime. We can either create the tables externally or we can create a schema.sql file inside the resources folder and execute them programmatically. For our application, we will create a schema.sql file inside the resources folder with all the DDL statements.
 DROP TABLE IF EXISTS users ;
@@ -1441,3 +1454,64 @@ spring.security.oauth2.client.registration.github.client-secret=
 
 5. Restart the appl
 6. Run as http://localhost:2222, it will redirect to github 
+
+
+
+Hibernate with Spring Boot 2 
+https://www.youtube.com/watch?v=gNGOGB8CrR0
+
+1. Create Hibernate-SpringReactive with webflux   
+
+
+Spring WebFlux with R2DBC(Mysql)
+
+https://www.youtube.com/watch?v=uUED8mkxxzg
+
+https://github.com/vishalrs/product-manager-rx
+
+    In reactive world there is no support for JPA, so there are reactive jdbc drivers available if we are dealing with nosql databases, for relational db we use r2dbc and r2dbc-mysql which is reactive mysql driver 
+   Since we dont have JPA, we do not have facility to automatically create table into database, for that we have 2 ways
+  1. Create schema using ConnectionFactoryInitializer
+  2. Create the table manaually
+
+1. Create Program-Manager-Reactive with webflux, r2dbc, r2dbc mysql driver
+2. Configure db info in application.properties
+3. Create schema.sql and data.sql  
+4. Create ProductManagerConfig class which creates the schema and table using ConnectionFactoryInitializer
+5. Start application which creates products table
+6. Each time when we run, the data inserted into table, so we create DataInitializer to create the data, first it deletes and then insert the data
+
+7. Create Products model class
+8. Create ProductRepository which extends ReactiveCrudRepository 
+9. Create Controller
+10. Create Service 
+
+
+Reactive programming
+
+https://github.com/dilipsundarraj1/reactive-programming-using-reactor/tree/final
+
+https://www.youtube.com/watch?v=Pnw_z4E4AqA&list=PLnXn1AViWyL6q4rFvFZtJOYPb3TWUpFEM&index=8
+
+1. Create ReactiveProgramming project with reactive web,lombok dependency 
+
+2. Create FluxAndMonoGeneratorService.java with main method inside service package
+
+3. Create namesFlux() which return Flux of type String, and we create Flux using fromIterable() which takes collection 
+
+public Flux<String> namesFlux() {
+        List<String> namesList = Arrays.asList("alex", "ben", "chloe");
+        //return Flux.just("alex", "ben", "chloe");
+        return Flux.fromIterable(namesList); // coming from a db or remote service
+
+    }
+
+Now we use that function and then consume these values from the flux using subcribe() and log the information
+
+FluxAndMonoGeneratorService fluxAndMonoGeneratorService = new FluxAndMonoGeneratorService();
+
+        Flux<String> namesFlux = fluxAndMonoGeneratorService.namesFlux().log();
+
+        namesFlux.subscribe((name) -> {
+            System.out.println("Name is : " + name);
+        });
